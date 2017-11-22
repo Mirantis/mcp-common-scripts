@@ -1,0 +1,13 @@
+pbr
+pygerrit
+python-aptly
+pip
+salt-pepper
+wheel
+virtualenv
+setuptools
+PyGithub
+pkginfo
+PyRSS2Gen
+python_swiftclient
+PyJWT
