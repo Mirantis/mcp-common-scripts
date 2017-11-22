@@ -4,6 +4,7 @@ export SALT_MASTER_MINION_ID=cfg01.deploy-name.local
 export DEPLOY_NETWORK_GW=172.16.164.1
 export DEPLOY_NETWORK_NETMASK=255.255.255.192
 export DNS_SERVERS=8.8.8.8
+export SYSTEM_URL=https://github.com/Mirantis/reclass-system-salt-model.git
 
 echo "Configuring network interfaces"
 envsubst < /root/interfaces > /etc/network/interfaces
@@ -12,7 +13,15 @@ ifdown ens3; ifup ens3
 echo "Preparing metadata model"
 mount /dev/cdrom /mnt/
 cp -r /mnt/model/model/* /srv/salt/reclass/
+cp -r /mnt/model/model/.git /srv/salt/reclass/
+envsubst < /root/gitmodules > /srv/salt/reclass/.gitmodules
+cd /srv/salt/reclass/classes/system/
+git remote remove origin
+git remote add origin $SYSTEM_URL
+cd /srv/salt/reclass/
+git submodule update --init --recursive
 chown -R root:root /srv/salt/reclass/*
+chown -R root:root /srv/salt/reclass/.git*
 chmod -R 644 /srv/salt/reclass/classes/cluster/*
 chmod -R 644 /srv/salt/reclass/classes/system/*
 
