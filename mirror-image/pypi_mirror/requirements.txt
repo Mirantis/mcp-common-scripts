@@ -1,6 +1,5 @@
 pbr
 pygerrit
-python-aptly
 pip
 salt-pepper
 wheel
