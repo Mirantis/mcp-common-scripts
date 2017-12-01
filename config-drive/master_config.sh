@@ -8,7 +8,9 @@ export SYSTEM_URL=https://github.com/Mirantis/reclass-system-salt-model.git
 
 echo "Configuring network interfaces"
 envsubst < /root/interfaces > /etc/network/interfaces
-ifdown ens3; ifup ens3
+ip a flush dev ens3
+rm /var/run/network/ifstate.ens3
+ifup ens3
 
 echo "Preparing metadata model"
 mount /dev/cdrom /mnt/
