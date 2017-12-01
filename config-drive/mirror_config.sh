@@ -7,7 +7,9 @@ export APTLY_MINION_ID=apt01.deploy-name.local
 
 echo "Configuring network interfaces"
 envsubst < /root/interfaces > /etc/network/interfaces
-ifdown ens3; ifup ens3
+ip a flush dev ens3
+rm /var/run/network/ifstate.ens3
+ifup ens3
 
 echo "Configuring salt"
 service salt-minion stop
