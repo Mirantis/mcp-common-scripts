@@ -8,7 +8,10 @@ export APTLY_MINION_ID=apt01.deploy-name.local
 echo "Configuring network interfaces"
 envsubst < /root/interfaces > /etc/network/interfaces
 ip a flush dev ens3
-rm /var/run/network/ifstate.ens3
+rm -f /var/run/network/ifstate.ens3
+if [[ $(grep -E '^\ *gateway\ ' /etc/network/interfaces) ]]; then
+(ip r s | grep ^default) && ip r d default || /bin/true
+fi;
 ifup ens3
 
 echo "Configuring salt"

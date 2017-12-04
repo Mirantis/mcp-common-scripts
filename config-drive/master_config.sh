@@ -9,7 +9,10 @@ export SYSTEM_URL=https://github.com/Mirantis/reclass-system-salt-model.git
 echo "Configuring network interfaces"
 envsubst < /root/interfaces > /etc/network/interfaces
 ip a flush dev ens3
-rm /var/run/network/ifstate.ens3
+rm -f /var/run/network/ifstate.ens3
+if [[ $(grep -E '^\ *gateway\ ' /etc/network/interfaces) ]]; then
+(ip r s | grep ^default) && ip r d default || /bin/true
+fi;
 ifup ens3
 
 echo "Preparing metadata model"
