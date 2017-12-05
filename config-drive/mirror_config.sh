@@ -6,6 +6,8 @@ export APTLY_DEPLOY_NETMASK=255.255.0.0
 export APTLY_MINION_ID=apt01.deploy-name.local
 
 echo "Configuring network interfaces"
+find /etc/network/interfaces.d/ -type f -delete
+kill $(pidof /sbin/dhclient) || /bin/true
 envsubst < /root/interfaces > /etc/network/interfaces
 ip a flush dev ens3
 rm -f /var/run/network/ifstate.ens3

@@ -7,6 +7,8 @@ export DNS_SERVERS=8.8.8.8
 export SYSTEM_URL=https://github.com/Mirantis/reclass-system-salt-model.git
 
 echo "Configuring network interfaces"
+find /etc/network/interfaces.d/ -type f -delete
+kill $(pidof /sbin/dhclient) || /bin/true
 envsubst < /root/interfaces > /etc/network/interfaces
 ip a flush dev ens3
 rm -f /var/run/network/ifstate.ens3
