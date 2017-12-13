@@ -6,6 +6,7 @@ export DEPLOY_NETWORK_NETMASK=255.255.255.192
 export DNS_SERVERS=8.8.8.8
 export SYSTEM_URL=https://github.com/Mirantis/reclass-system-salt-model.git
 
+rm -vf /etc/update-motd.d/*
 echo "Configuring network interfaces"
 find /etc/network/interfaces.d/ -type f -delete
 kill $(pidof /sbin/dhclient) || /bin/true
