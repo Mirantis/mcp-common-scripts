@@ -58,16 +58,16 @@ echo "updating git repos"
 if [ "$PIPELINES_FROM_ISO" = true ] ; then
   cp -r /mnt/mk-pipelines/* /home/repo/mk/mk-pipelines/
   cp -r /mnt/pipeline-library/* /home/repo/mcp-ci/pipeline-library/
+  umount /dev/cdrom
   chown -R git:www-data /home/repo/mk/mk-pipelines/*
   chown -R git:www-data /home/repo/mcp-ci/pipeline-library/*
 else
+  umount /dev/cdrom
   git clone --mirror $PIPELINE_REPO_URL/mk-pipelines.git /home/repo/mk/mk-pipelines/
   git clone --mirror $PIPELINE_REPO_URL/pipeline-library.git /home/repo/mcp-ci/pipeline-library/
   chown -R git:www-data /home/repo/mk/mk-pipelines/*
   chown -R git:www-data /home/repo/mcp-ci/pipeline-library/*
 fi
-
-umount /dev/cdrom
 
 salt-call saltutil.refresh_pillar
 salt-call saltutil.sync_all
