@@ -12,7 +12,7 @@ auto ens3
 iface ens3 inet static
   address $APTLY_DEPLOY_IP
   netmask $APTLY_DEPLOY_NETMASK
-auto ens4
-iface ens4 inet static
-  address $APTLY_CONTROL_IP
-  netmask $APTLY_CONTROL_NETMASK
+#auto ens4
+#iface ens4 inet static
+#  address $APTLY_CONTROL_IP
+#  netmask $APTLY_CONTROL_NETMASK
