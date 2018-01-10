@@ -1,50 +1,65 @@
 #!/bin/bash
 
-DEBMLOG=/var/log/debmirror.log
+set -xe
+set -o pipefail
+stamp=$(date "+%Y_%m_%d_%H_%M_%S")
+DEBMLOG=/var/log/debmirror/${stamp}.log
 MIRRORDIR=/srv/aptly/public
+MCP_VERSION=${MCP_VERSION:-stable}
+MIRROR_HOST=${MIRROR_HOST:-"mirror.mirantis.com"}
+method=${CLONE_METHOD:-"rsync"}
 
-if test -s $DEBMLOG
-then
-test -f $DEBMLOG.3.gz && mv $DEBMLOG.3.gz $DEBMLOG.4.gz
-test -f $DEBMLOG.2.gz && mv $DEBMLOG.2.gz $DEBMLOG.3.gz
-test -f $DEBMLOG.1.gz && mv $DEBMLOG.1.gz $DEBMLOG.2.gz
-test -f $DEBMLOG.0 && mv $DEBMLOG.0 $DEBMLOG.1 && gzip $DEBMLOG.1
-mv $DEBMLOG $DEBMLOG.0
-cp /dev/null $DEBMLOG
-chmod 640 $DEBMLOG
+if [[ ${method} == "rsync" ]] ; then
+  m_root=":mirror/$MCP_VERSION/ubuntu"
+elif [[ ${method} == "http" ]] ; then
+  m_root="$MCP_VERSION/ubuntu"
+else
+  echo "LOG: Error: unsupported clone method!" 2>&1 | tee -a $DEBMLOG
+  exit 1
 fi
 
-# Record the current date/time
-date 2>&1 | tee -a $DEBMLOG
+### Script body ###
+echo "LOG: Start: $(date '+%Y_%m_%d_%H_%M_%S')"  2>&1 | tee -a $DEBMLOG
 
+mkdir -p $(dirname ${DEBMLOG}) ${MIRRORDIR}
 # Ubuntu General
-echo "\n*** Ubuntu Mirror ***\n" 2>&1 | tee -a $DEBMLOG
-debmirror --i18n --method=http --progress \
---host=mirror.mirantis.com \
-$MIRRORDIR/ubuntu \
---arch=amd64 \
---dist=xenial,xenial-security,xenial-updates,xenial-backports \
---root=$MCP_VERSION/ubuntu \
---dist=main,multiverse,restricted,universe \
---rsync-extra=none \
---ignore-small-errors \
---exclude-deb-section=games \
---exclude-deb-section=gnome \
---exclude-deb-section=graphics \
---exclude-deb-section=kde \
---exclude-deb-section=video \
-2>&1 | tee -a $DEBMLOG
+echo "LOG: Ubuntu Mirror" 2>&1 | tee -a $DEBMLOG
 
-echo "\n*** Fixing ownership ***\n" 2>&1 | tee -a $DEBMLOG
-find $MIRRORDIR -type d -o -type f -exec chown aptly:aptly '{}' \; \
-2>&1 | tee -a $DEBMLOG
+debmirror --verbose --method=${method} --progress \
+  --host=${MIRROR_HOST} \
+  --arch=amd64 \
+  --dist=xenial,xenial-security,xenial-updates \
+  --root=${m_root} \
+  --section=main,multiverse,restricted,universe \
+  --rsync-extra=none \
+  --nosource \
+  --no-check-gpg \
+  --exclude-deb-section=games \
+  --exclude-deb-section=gnome \
+  --exclude-deb-section=Xfce \
+  --exclude-deb-section=sound \
+  --exclude-deb-section=doc \
+  --exclude-deb-section=electronics \
+  --exclude-deb-section=graphics \
+  --exclude-deb-section=hamradio \
+  --exclude-deb-section=localization \
+  --exclude-deb-section=kde \
+  --exclude-deb-section=video \
+  --exclude='/firefox*' \
+  --exclude='/chromium-browser*' \
+  --exclude='/ceph*' \
+  --exclude='/*-wallpapers*' \
+  --exclude='/language-pack-(?!en)' \
+  $MIRRORDIR/ubuntu 2>&1 | tee -a $DEBMLOG
 
-echo "\n*** Fixing permissions ***\n" 2>&1 | tee -a $DEBMLOG
-find $MIRRORDIR -type d -o -type f -exec chmod u+rw,g+r,o+r-w {} \; \
-2>&1 | tee -a $DEBMLOG
+echo "LOG: Fixing ownership" 2>&1 | tee -a $DEBMLOG
+find "${MIRRORDIR}" -type d -o -type f -exec chown aptly:aptly '{}' \; 2>&1 | tee -a $DEBMLOG
 
-echo "\n*** Mirror size ***\n" 2>&1 | tee -a $DEBMLOG
-du -hs $MIRRORDIR 2>&1 | tee -a $DEBMLOG
+echo "LOG: Fixing permissions " 2>&1 | tee -a $DEBMLOG
+find "${MIRRORDIR}" -type d -o -type f -exec chmod u+rw,g+r,o+r-w {} \; 2>&1 | tee -a $DEBMLOG
 
-# Record the current date/time
-date 2>&1 | tee -a $DEBMLOG
+echo "LOG: Mirror size " 2>&1 | tee -a $DEBMLOG
+du -hs "${MIRRORDIR}" 2>&1 | tee -a $DEBMLOG
+
+echo "LOG: Finish:$(date '+%Y_%m_%d_%H_%M_%S')"  2>&1 | tee -a $DEBMLOG
+
