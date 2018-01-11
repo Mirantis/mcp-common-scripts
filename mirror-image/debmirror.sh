@@ -3,11 +3,15 @@
 set -xe
 set -o pipefail
 stamp=$(date "+%Y_%m_%d_%H_%M_%S")
-DEBMLOG=/var/log/debmirror/${stamp}.log
+LOGDIR=/var/log/debmirror
+DEBMLOG=${LOGDIR}/${stamp}.log
 MIRRORDIR=/srv/aptly/public
 MCP_VERSION=${MCP_VERSION:-stable}
 MIRROR_HOST=${MIRROR_HOST:-"mirror.mirantis.com"}
 method=${CLONE_METHOD:-"rsync"}
+
+mkdir -p ${LOGDIR}
+mkdir -p ${MIRRORDIR}
 
 if [[ ${method} == "rsync" ]] ; then
   m_root=":mirror/$MCP_VERSION/ubuntu"
