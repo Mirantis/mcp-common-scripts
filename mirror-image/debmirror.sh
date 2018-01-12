@@ -49,12 +49,15 @@ debmirror --verbose --method=${method} --progress \
   --exclude-deb-section=localization \
   --exclude-deb-section=kde \
   --exclude-deb-section=video \
+  --exclude='/android*' \
   --exclude='/firefox*' \
   --exclude='/chromium-browser*' \
   --exclude='/ceph*' \
   --exclude='/*-wallpapers*' \
   --exclude='/language-pack-(?!en)' \
   --include='/main(.*)manpages' \
+  --include='/main(.*)python-(.*)doc' \
+  --include='/main(.*)python-(.*)network' \
   $MIRRORDIR/ubuntu 2>&1 | tee -a $DEBMLOG
 
 echo "LOG: Fixing ownership" 2>&1 | tee -a $DEBMLOG
