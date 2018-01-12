@@ -54,6 +54,7 @@ debmirror --verbose --method=${method} --progress \
   --exclude='/ceph*' \
   --exclude='/*-wallpapers*' \
   --exclude='/language-pack-(?!en)' \
+  --include='/main(.*)manpages' \
   $MIRRORDIR/ubuntu 2>&1 | tee -a $DEBMLOG
 
 echo "LOG: Fixing ownership" 2>&1 | tee -a $DEBMLOG
