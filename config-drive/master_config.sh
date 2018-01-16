@@ -69,11 +69,17 @@ else
   chown -R git:www-data /home/repo/mcp-ci/pipeline-library/*
 fi
 
+ssh-keyscan cfg01 > /var/lib/jenkins/.ssh/known_hosts
+
 salt-call saltutil.refresh_pillar
 salt-call saltutil.sync_all
 salt-call state.sls linux.network,linux,openssh,salt
 salt-call state.sls maas.cluster,maas.region,reclass
 
-ssh-keyscan cfg01 > /var/lib/jenkins/.ssh/known_hosts
+pillar=`salt-call pillar.data jenkins:client`
+
+if [[ $pillar == *"job"* ]]; then
+  salt-call state.sls jenkins.client
+fi
 
 reboot
