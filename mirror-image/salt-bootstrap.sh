@@ -1,8 +1,9 @@
 #!/bin/bash
+echo "deb [arch=amd64] http://apt.mirantis.com/xenial/ ${MCP_VERSION} salt" > /etc/apt/sources.list.d/mcp_salt.list
 apt-get update
 apt-get install git -y
 apt-get install salt-formula* -y
-git clone $CLUSTER_MODEL --recursive /srv/salt/reclass
+git clone --recursive -b $CLUSTER_MODEL_REF $CLUSTER_MODEL /srv/salt/reclass
 git clone https://github.com/salt-formulas/salt-formulas-scripts /srv/salt/scripts
 export FORMULAS_SOURCE=pkg
 export HOSTNAME=apt01
