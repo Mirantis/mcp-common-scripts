@@ -57,6 +57,7 @@ debmirror --verbose --method=${method} --progress \
   --exclude='/language-pack-(?!en)' \
   --include='/main(.*)manpages' \
   --include='/main(.*)python-(.*)doc' \
+  --include='/universe(.*)python-(.*)doc' \
   --include='/main(.*)python-(.*)network' \
   $MIRRORDIR/ubuntu 2>&1 | tee -a $DEBMLOG
 
