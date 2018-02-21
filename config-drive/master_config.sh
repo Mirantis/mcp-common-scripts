@@ -25,7 +25,8 @@ ifup ens3
 
 echo "Preparing metadata model"
 mount /dev/cdrom /mnt/
-cp -rT /mnt/model/model/* /srv/salt/reclass/
+for FOLDER in
+cp -rT /mnt/model/model /srv/salt/reclass
 chown -R root:root /srv/salt/reclass/*
 chown -R root:root /srv/salt/reclass/.git*
 chmod -R 644 /srv/salt/reclass/classes/cluster/*
