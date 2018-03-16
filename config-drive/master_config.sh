@@ -64,6 +64,7 @@ fi
 salt-call saltutil.refresh_pillar
 salt-call saltutil.sync_all
 salt-call state.sls linux.network,linux,openssh,salt
+salt-call state.sls salt
 salt-call state.sls maas.cluster,maas.region,reclass
 
 ssh-keyscan cfg01 > /var/lib/jenkins/.ssh/known_hosts
