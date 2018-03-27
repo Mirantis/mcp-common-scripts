@@ -1,8 +1,16 @@
-!/bin/bash -xe
-MIRROR_VM_MGM_BRIDGE_NAME=${MIRROR_VM_MGM_BRIDGE_NAME:-"br_mgm"}
+#!/bin/bash -xe
+
+MIRROR_VM_MGM_BRIDGE_NAME=${MIRROR_VM_MGM_BRIDGE_NAME:-"br-mgm"}
 MIRROR_VM_MEM_KB=${MIRROR_VM_MEM_KB:-"4194304"}
 MIRROR_VM_CPUS=${MIRROR_VM_CPUS:-"4"}
-echo "<domain type='kvm'>
+
+if [[ -z ${MIRROR_VM_NAME} ]]; then
+  echo "ERROR: \$MIRROR_VM_NAME not set!"
+  exit 1
+fi
+
+cat <<EOF > $(pwd)/mirror-vm.xml
+<domain type='kvm'>
   <name>$MIRROR_VM_NAME</name>
   <memory unit='KiB'>$MIRROR_VM_MEM_KB</memory>
   <currentMemory unit='KiB'>$MIRROR_VM_MEM_KB</currentMemory>
@@ -16,7 +24,6 @@ echo "<domain type='kvm'>
   </os>
   <features>
     <acpi/>
-    <apic/>
   </features>
   <clock offset='utc'>
     <timer name='rtc' tickpolicy='catchup'/>
@@ -33,7 +40,6 @@ echo "<domain type='kvm'>
       <driver name='qemu' type='qcow2' cache='none'/>
       <source file='$MIRROR_VM_SOURCE_DISK'/>
       <target dev='vda' bus='virtio'/>
-      <alias name='virtio-disk0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
     </disk>
     <disk type='file' device='cdrom'>
@@ -42,29 +48,30 @@ echo "<domain type='kvm'>
       <backingStore/>
       <target dev='hda' bus='ide'/>
       <readonly/>
-      <alias name='ide0-0-0'/>
       <address type='drive' controller='0' bus='0' target='0' unit='0'/>
     </disk>
     <interface type='bridge'>
       <source bridge='$MIRROR_VM_MGM_BRIDGE_NAME'/>
-      <target dev='vnet0'/>
       <model type='virtio'/>
-      <alias name='net0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </interface>
     <serial type='pty'>
       <source path='/dev/pts/1'/>
       <target port='0'/>
-      <alias name='serial0'/>
     </serial>
     <console type='pty' tty='/dev/pts/1'>
       <source path='/dev/pts/1'/>
       <target type='serial' port='0'/>
-      <alias name='serial0'/>
     </console>
     <graphics type='vnc' port='5900' autoport='yes' listen='127.0.0.1'>
       <listen type='address' address='127.0.0.1'/>
     </graphics>
   </devices>
-</domain>" > $PWD/mirror-vm.xml
-virsh define $PWD/mirror-vm.xml
+</domain>
+EOF
+
+echo "INFO: rendered VM config:"
+cat $(pwd)/mirror-vm.xml
+
+virsh define $(pwd)/mirror-vm.xml
+virsh autostart ${MIRROR_VM_NAME}
