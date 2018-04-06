@@ -8,6 +8,11 @@ export http_proxy=
 export https_proxy=
 export PIPELINES_FROM_ISO=true
 export PIPELINE_REPO_URL=https://github.com/Mirantis
+export MCP_VERSION=stable
+export MCP_SALT_REPO_KEY=http://apt.mirantis.com/public.gpg
+export MCP_SALT_REPO_URL=http://apt.mirantis.com/xenial
+export MCP_SALT_REPO="deb [arch=amd64] $MCP_SALT_REPO_URL $MCP_VERSION salt"
+export FORMULAS="salt-formula-*"
 #for cloning from aptly image use port 8088
 #export PIPELINE_REPO_URL=http://172.16.47.182:8088
 
@@ -60,6 +65,14 @@ else
   chown -R git:www-data /home/repo/mk/mk-pipelines/*
   chown -R git:www-data /home/repo/mcp-ci/pipeline-library/*
 fi
+
+echo "installing formulas"
+curl -s $MCP_SALT_REPO_KEY | sudo apt-key add -
+echo $MCP_SALT_REPO > /etc/apt/sources.list.d/mcp_salt.list
+apt-get update
+apt-get install -y $FORMULAS
+rm -r /srv/salt/reclass/classes/service/*
+cd /srv/salt/reclass/classes/service/;ls /usr/share/salt-formulas/reclass/service/ -1 | xargs -I{} ln -s /usr/share/salt-formulas/reclass/service/{};cd
 
 salt-call saltutil.refresh_pillar
 salt-call saltutil.sync_all
