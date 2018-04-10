@@ -72,7 +72,7 @@ echo $MCP_SALT_REPO > /etc/apt/sources.list.d/mcp_salt.list
 apt-get update
 apt-get install -y $FORMULAS
 rm -r /srv/salt/reclass/classes/service/*
-cd /srv/salt/reclass/classes/service/;ls /usr/share/salt-formulas/reclass/service/ -1 | xargs -I{} ln -s /usr/share/salt-formulas/reclass/service/{};cd
+cd /srv/salt/reclass/classes/service/;ls /usr/share/salt-formulas/reclass/service/ -1 | xargs -I{} ln -s /usr/share/salt-formulas/reclass/service/{};cd /root
 
 salt-call saltutil.refresh_pillar
 salt-call saltutil.sync_all
