@@ -66,6 +66,10 @@ else
   chown -R git:www-data /home/repo/mcp-ci/pipeline-library/*
 fi
 
+echo "cleaning sources lists"
+rm -r /etc/apt/sources.list.d/*
+echo "" > /etc/apt/sources.list
+
 echo "installing formulas"
 curl -s $MCP_SALT_REPO_KEY | sudo apt-key add -
 echo $MCP_SALT_REPO > /etc/apt/sources.list.d/mcp_salt.list
