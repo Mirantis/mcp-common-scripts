@@ -13,6 +13,7 @@ export MCP_SALT_REPO_KEY=http://apt.mirantis.com/public.gpg
 export MCP_SALT_REPO_URL=http://apt.mirantis.com/xenial
 export MCP_SALT_REPO="deb [arch=amd64] $MCP_SALT_REPO_URL $MCP_VERSION salt"
 export FORMULAS="salt-formula-*"
+export LOCAL_REPOS=false
 #for cloning from aptly image use port 8088
 #export PIPELINE_REPO_URL=http://172.16.47.182:8088
 
@@ -79,6 +80,14 @@ salt-call saltutil.sync_all
 salt-call state.sls linux.network,linux,openssh,salt
 salt-call state.sls salt
 salt-call state.sls maas.cluster,maas.region,reclass
+
+# Download ubuntu image from MAAS local mirror
+if [ "$LOCAL_REPOS" = true ] ; then
+  /var/lib/maas/.maas_login.sh
+  maas mirantis boot-source-selections create 2 os="ubuntu" release="xenial" arches="amd64" subarches="*" labels="*"
+  maas mirantis boot-source delete 1
+  maas mirantis boot-resources import
+fi
 
 ssh-keyscan cfg01 > /var/lib/jenkins/.ssh/known_hosts
 
