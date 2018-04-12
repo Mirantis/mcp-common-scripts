@@ -81,9 +81,13 @@ salt-call state.sls linux.network,linux,openssh,salt
 salt-call state.sls salt
 salt-call state.sls maas.cluster,maas.region,reclass
 
+# disable backports for maas pkg repo
+/var/lib/maas/.maas_login.sh
+maas mirantis package-repository update 1 "disabled_pockets=backports"
+maas mirantis package-repository update 1 "arches=amd64"
+
 # Download ubuntu image from MAAS local mirror
 if [ "$LOCAL_REPOS" = true ] ; then
-  /var/lib/maas/.maas_login.sh
   maas mirantis boot-source-selections create 2 os="ubuntu" release="xenial" arches="amd64" subarches="*" labels="*"
   maas mirantis boot-source delete 1
   maas mirantis boot-resources import
