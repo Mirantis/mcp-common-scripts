@@ -1,4 +1,5 @@
 #!/bin/bash -xe
+
 export SALT_MASTER_DEPLOY_IP=172.16.164.15
 export SALT_MASTER_MINION_ID=cfg01.deploy-name.local
 export DEPLOY_NETWORK_GW=172.16.164.1
@@ -13,11 +14,30 @@ export MCP_SALT_REPO_KEY=http://apt.mirantis.com/public.gpg
 export MCP_SALT_REPO_URL=http://apt.mirantis.com/xenial
 export MCP_SALT_REPO="deb [arch=amd64] $MCP_SALT_REPO_URL $MCP_VERSION salt"
 export FORMULAS="salt-formula-*"
+# Not avaible in 2018.3.1 and pre.
+# TODO should be renamed to LOCAL_MAAS_STREAMS
 export LOCAL_REPOS=false
 #for cloning from aptly image use port 8088
 #export PIPELINE_REPO_URL=http://172.16.47.182:8088
 
-rm -vf /etc/update-motd.d/52-info
+function _post_maas_cfg(){
+  local PROFILE=mirantis
+  /var/lib/maas/.maas_login.sh
+  # disable backports for maas enlist pkg repo
+  maas ${PROFILE} package-repository update 1 "disabled_pockets=backports"
+  maas ${PROFILE} package-repository update 1 "arches=amd64"
+  # Download ubuntu image from MAAS local mirror
+  if [[ "$LOCAL_REPOS" == "true" ]] ; then
+    maas ${PROFILE} boot-source-selections create 2 os="ubuntu" release="xenial" arches="amd64" subarches="*" labels="*"
+    echo "WARNING: Removing default MAAS stream:"
+    maas ${PROFILE} boot-source read 1
+    maas ${PROFILE} boot-source delete 1
+    maas ${PROFILE} boot-resources import
+    # TODO wait for finish,and stop import.
+  fi
+}
+
+### Body
 echo "Configuring network interfaces"
 find /etc/network/interfaces.d/ -type f -delete
 kill $(pidof /sbin/dhclient) || /bin/true
@@ -33,9 +53,9 @@ echo "Preparing metadata model"
 mount /dev/cdrom /mnt/
 cp -rT /mnt/model/model /srv/salt/reclass
 chown -R root:root /srv/salt/reclass/*
-chown -R root:root /srv/salt/reclass/.git*
-chmod -R 644 /srv/salt/reclass/classes/cluster/*
-chmod -R 644 /srv/salt/reclass/classes/system/*
+chown -R root:root /srv/salt/reclass/.git* || true
+chmod -R 644 /srv/salt/reclass/classes/cluster/* || true
+chmod -R 644 /srv/salt/reclass/classes/system/*  || true
 
 echo "Configuring salt"
 #service salt-master restart
@@ -46,30 +66,26 @@ while true; do
     sleep 5
 done
 sleep 5
-for i in `salt-key -l accepted | grep -v Accepted | grep -v "$SALT_MASTER_MINION_ID"`; do
+for i in $(salt-key -l accepted | grep -v Accepted | grep -v "$SALT_MASTER_MINION_ID"); do
     salt-key -d $i -y
 done
 
 find /var/lib/jenkins/jenkins.model.JenkinsLocationConfiguration.xml -type f -print0 | xargs -0 sed -i -e 's/10.167.4.15/'$SALT_MASTER_DEPLOY_IP'/g'
 
 echo "updating git repos"
-if [ "$PIPELINES_FROM_ISO" = true ] ; then
+if [[ "$PIPELINES_FROM_ISO" == "true" ]] ; then
   cp -r /mnt/mk-pipelines/* /home/repo/mk/mk-pipelines/
   cp -r /mnt/pipeline-library/* /home/repo/mcp-ci/pipeline-library/
-  umount /dev/cdrom
+  umount /dev/cdrom || true
   chown -R git:www-data /home/repo/mk/mk-pipelines/*
   chown -R git:www-data /home/repo/mcp-ci/pipeline-library/*
 else
-  umount /dev/cdrom
-  git clone --mirror $PIPELINE_REPO_URL/mk-pipelines.git /home/repo/mk/mk-pipelines/
-  git clone --mirror $PIPELINE_REPO_URL/pipeline-library.git /home/repo/mcp-ci/pipeline-library/
+  umount /dev/cdrom || true
+  git clone --mirror "${PIPELINE_REPO_URL}/mk-pipelines.git" /home/repo/mk/mk-pipelines/
+  git clone --mirror "${PIPELINE_REPO_URL}/pipeline-library.git" /home/repo/mcp-ci/pipeline-library/
   chown -R git:www-data /home/repo/mk/mk-pipelines/*
   chown -R git:www-data /home/repo/mcp-ci/pipeline-library/*
 fi
-
-echo "cleaning sources lists"
-rm -r /etc/apt/sources.list.d/*
-echo "" > /etc/apt/sources.list
 
 echo "installing formulas"
 curl -s $MCP_SALT_REPO_KEY | sudo apt-key add -
@@ -81,25 +97,22 @@ cd /srv/salt/reclass/classes/service/;ls /usr/share/salt-formulas/reclass/servic
 
 salt-call saltutil.refresh_pillar
 salt-call saltutil.sync_all
-salt-call state.sls linux.network,linux,openssh,salt
-salt-call state.sls salt
-salt-call state.sls maas.cluster,maas.region,reclass
-
-# disable backports for maas pkg repo
-/var/lib/maas/.maas_login.sh
-maas mirantis package-repository update 1 "disabled_pockets=backports"
-maas mirantis package-repository update 1 "arches=amd64"
-
-# Download ubuntu image from MAAS local mirror
-if [ "$LOCAL_REPOS" = true ] ; then
-  maas mirantis boot-source-selections create 2 os="ubuntu" release="xenial" arches="amd64" subarches="*" labels="*"
-  maas mirantis boot-source delete 1
-  maas mirantis boot-resources import
+if ! $(reclass -n ${SALT_MASTER_MINION_ID} > /dev/null ) ; then
+  echo "ERROR: Reclass render failed!"
+  exit 1
 fi
 
-ssh-keyscan cfg01 > /var/lib/jenkins/.ssh/known_hosts
+salt-call state.sls linux.network,linux,openssh,salt
+salt-call state.sls salt
+# Sometimes, maas can stuck :(
+salt-call state.sls maas.cluster,maas.region || salt-call state.sls maas.cluster,maas.region
+salt-call state.sls reclass
 
-pillar=`salt-call pillar.data jenkins:client`
+_post_maas_cfg
+
+ssh-keyscan cfg01 > /var/lib/jenkins/.ssh/known_hosts || true
+
+pillar=$(salt-call pillar.data jenkins:client)
 
 if [[ $pillar == *"job"* ]]; then
   salt-call state.sls jenkins.client
