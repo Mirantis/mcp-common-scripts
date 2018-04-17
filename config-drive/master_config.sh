@@ -14,15 +14,38 @@ export MCP_SALT_REPO_KEY=http://apt.mirantis.com/public.gpg
 export MCP_SALT_REPO_URL=http://apt.mirantis.com/xenial
 export MCP_SALT_REPO="deb [arch=amd64] $MCP_SALT_REPO_URL $MCP_VERSION salt"
 export FORMULAS="salt-formula-*"
-# Not avaible in 2018.3.1 and pre.
-# TODO should be renamed to LOCAL_MAAS_STREAMS
+# Not avaible in 2018.4 and pre.
 export LOCAL_REPOS=false
 #for cloning from aptly image use port 8088
 #export PIPELINE_REPO_URL=http://172.16.47.182:8088
 
+function _apt_cfg(){
+  # TODO remove those function after 2018.4 release
+  echo "Acquire::CompressionTypes::Order gz;" >/etc/apt/apt.conf.d/99compression-workaround-salt
+  echo "Acquire::EnableSrvRecords false;" >/etc/apt/apt.conf.d/99enablesrvrecords-false
+  echo "Acquire::http::Pipeline-Depth 0;" > /etc/apt/apt.conf.d/99aws-s3-mirrors-workaround-salt
+  echo "APT::Install-Recommends false;" > /etc/apt/apt.conf.d/99dont_install_recommends-salt
+  echo "APT::Install-Suggests false;" > /etc/apt/apt.conf.d/99dont_install_suggests-salt
+  echo "Acquire::Languages none;" > /etc/apt/apt.conf.d/99dont_acquire_all_languages-salt
+  echo "APT::Periodic::Update-Package-Lists 0;" > /etc/apt/apt.conf.d/99dont_update_package_list-salt
+  echo "APT::Periodic::Download-Upgradeable-Packages 0;" > /etc/apt/apt.conf.d/99dont_update_download_upg_packages-salt
+  echo "APT::Periodic::Unattended-Upgrade 0;" > /etc/apt/apt.conf.d/99disable_unattended_upgrade-salt
+  echo "INFO: cleaning sources lists"
+  rm -rv /etc/apt/sources.list.d/* || true
+  echo > /etc/apt/sources.list  || true
+}
+
 function _post_maas_cfg(){
   local PROFILE=mirantis
-  /var/lib/maas/.maas_login.sh
+  # TODO: remove those check, and use only new version, adfter 2018.4 release
+  if [[ -f /var/lib/maas/.maas_login.sh ]]; then
+    /var/lib/maas/.maas_login.sh
+  else
+    echo "WARNING: Attempt to use old maas login schema.."
+    TOKEN=$(cat /var/lib/maas/.maas_credentials);
+    maas list | cut -d' ' -f1 | xargs -I{} maas logout {}
+    maas login $PROFILE http://127.0.0.1:5240/MAAS/api/2.0/ "${TOKEN}"
+  fi
   # disable backports for maas enlist pkg repo
   maas ${PROFILE} package-repository update 1 "disabled_pockets=backports"
   maas ${PROFILE} package-repository update 1 "arches=amd64"
@@ -88,6 +111,7 @@ else
 fi
 
 echo "installing formulas"
+_apt_cfg
 curl -s $MCP_SALT_REPO_KEY | sudo apt-key add -
 echo $MCP_SALT_REPO > /etc/apt/sources.list.d/mcp_salt.list
 apt-get update
