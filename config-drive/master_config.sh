@@ -127,6 +127,8 @@ if ! $(reclass -n ${SALT_MASTER_MINION_ID} > /dev/null ) ; then
 fi
 
 salt-call state.sls linux.network,linux,openssh,salt
+salt-call -t5 pkg.install salt-master,salt-minion
+sleep 5
 salt-call state.sls salt
 # Sometimes, maas can stuck :(
 salt-call state.sls maas.cluster,maas.region || salt-call state.sls maas.cluster,maas.region
