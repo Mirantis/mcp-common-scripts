@@ -143,6 +143,7 @@ salt-call state.sls maas.cluster,maas.region || salt-call state.sls maas.cluster
 salt-call state.sls reclass
 
 _post_maas_cfg
+salt-call state.sls maas.cluster,maas.region || salt-call state.sls maas.cluster,maas.region
 
 ssh-keyscan cfg01 > /var/lib/jenkins/.ssh/known_hosts || true
 
