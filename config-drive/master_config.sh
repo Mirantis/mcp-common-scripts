@@ -61,6 +61,11 @@ function _post_maas_cfg(){
     maas ${PROFILE} boot-source-selections create 1 os="ubuntu" release="xenial" arches="amd64" subarches="*" labels="*"
     maas ${PROFILE} boot-resources import
   fi
+  while [ ! -d /var/lib/maas/boot-resources/current/ubuntu/amd64/generic/xenial ]
+  do
+    sleep 10
+    echo "WARNING: Image is still not ready"
+  done
 }
 
 ### Body
