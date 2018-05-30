@@ -57,6 +57,9 @@ function _post_maas_cfg(){
     maas ${PROFILE} boot-source delete 1
     maas ${PROFILE} boot-resources import
     # TODO wait for finish,and stop import.
+  else
+    maas ${PROFILE} boot-source-selections create 1 os="ubuntu" release="xenial" arches="amd64" subarches="*" labels="*"
+    maas ${PROFILE} boot-resources import
   fi
 }
 
