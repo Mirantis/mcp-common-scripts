@@ -140,7 +140,7 @@ sleep 5
 salt-call state.sls salt
 # Sometimes, maas can stuck :(
 salt-call state.sls maas.cluster,maas.region || salt-call state.sls maas.cluster,maas.region
-salt-call state.sls reclass
+salt-call state.sls reclass,ntp
 
 _post_maas_cfg
 salt-call state.sls maas.cluster,maas.region || salt-call state.sls maas.cluster,maas.region
