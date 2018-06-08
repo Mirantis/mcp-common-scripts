@@ -1,7 +1,7 @@
 #!/bin/bash -xe
 
 VM_MGM_BRIDGE_NAME=${VM_MGM_BRIDGE_NAME:-"br-mgm"}
-VM_MEM_KB=${VM_MEM_KB:-"4194304"}
+VM_MEM_KB=${VM_MEM_KB:-"8388608"}
 VM_CPUS=${VM_CPUS:-"4"}
 
 if [[ -z ${VM_NAME} ]]; then
