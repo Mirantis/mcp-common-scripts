@@ -1,6 +1,7 @@
 #!/bin/bash -xe
 
 VM_MGM_BRIDGE_NAME=${VM_MGM_BRIDGE_NAME:-"br-mgm"}
+VM_CTL_BRIDGE_NAME=${VM_CTL_BRIDGE_NAME:-"br-ctl"}
 VM_MEM_KB=${VM_MEM_KB:-"8388608"}
 VM_CPUS=${VM_CPUS:-"4"}
 
@@ -65,8 +66,7 @@ cat <<EOF > $(pwd)/${VM_NAME}-vm.xml
       <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </interface>
 EOF
-if [[ -n ${VM_CTL_BRIDGE_NAME} ]]; then
-echo "\$VM_CTL_BRIDGE_NAME detected, adding one more nic to VM"
+if [[ ! ${VM_CTL_BRIDGE_DISABLE} ]]; then
 cat <<EOF >> $(pwd)/${VM_NAME}-vm.xml
     <interface type='bridge'>
       <source bridge='$VM_CTL_BRIDGE_NAME'/>
