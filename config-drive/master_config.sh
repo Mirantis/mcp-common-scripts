@@ -1,17 +1,17 @@
 #!/bin/bash -xe
 
-export SALT_MASTER_DEPLOY_IP=172.16.164.15
-export SALT_MASTER_MINION_ID=cfg01.deploy-name.local
-export DEPLOY_NETWORK_GW=172.16.164.1
-export DEPLOY_NETWORK_NETMASK=255.255.255.192
-export DNS_SERVERS=8.8.8.8
-export http_proxy=
-export https_proxy=
-export PIPELINES_FROM_ISO=true
-export PIPELINE_REPO_URL=https://github.com/Mirantis
-export MCP_VERSION=stable
-export MCP_SALT_REPO_KEY=http://apt.mirantis.com/public.gpg
-export MCP_SALT_REPO_URL=http://apt.mirantis.com/xenial
+export SALT_MASTER_DEPLOY_IP=${SALT_MASTER_DEPLOY_IP:-"172.16.164.15"}
+export SALT_MASTER_MINION_ID=${SALT_MASTER_MINION_ID:-"cfg01.deploy-name.local"}
+export DEPLOY_NETWORK_GW=${DEPLOY_NETWORK_GW:-"172.16.164.1"}
+export DEPLOY_NETWORK_NETMASK=${DEPLOY_NETWORK_NETMASK:-"255.255.255.192"}
+export DNS_SERVERS=${DNS_SERVERS:-"8.8.8.8"}
+export http_proxy=${http_proxy:-""}
+export https_proxy=${https_proxy:-""}
+export PIPELINES_FROM_ISO=${PIPELINES_FROM_ISO:-"true"}
+export PIPELINE_REPO_URL=${PIPELINE_REPO_URL:-"https://github.com/Mirantis"}
+export MCP_VERSION=${MCP_VERSION:-"stable"}
+export MCP_SALT_REPO_KEY=${MCP_SALT_REPO_KEY:-"http://apt.mirantis.com/public.gpg"}
+export MCP_SALT_REPO_URL=${MCP_SALT_REPO_URL:-"http://apt.mirantis.com/xenial"}
 export MCP_SALT_REPO="deb [arch=amd64] $MCP_SALT_REPO_URL $MCP_VERSION salt"
 export FORMULAS="salt-formula-*"
 # Not avaible in 2018.4 and pre.
