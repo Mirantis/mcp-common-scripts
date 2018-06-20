@@ -31,7 +31,7 @@ function _apt_cfg(){
   echo "APT::Periodic::Download-Upgradeable-Packages 0;" > /etc/apt/apt.conf.d/99dont_update_download_upg_packages-salt
   echo "APT::Periodic::Unattended-Upgrade 0;" > /etc/apt/apt.conf.d/99disable_unattended_upgrade-salt
   echo "INFO: cleaning sources lists"
-  rm -rv /etc/apt/sources.list.d/* || true
+  find /etc/apt/sources.list.d/ -type f -delete -print
   echo > /etc/apt/sources.list  || true
 }
 
