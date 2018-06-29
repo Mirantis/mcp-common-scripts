@@ -17,7 +17,6 @@ fi;
 ifup ens3
 
 echo "Configuring salt"
-service salt-minion stop
-systemctl disable salt-minion.service
+rm /etc/salt/pki/minion/minion_master.pub
 envsubst < /root/minion.conf > /etc/salt/minion.d/minion.conf
-#service salt-minion restart
+service salt-minion restart
