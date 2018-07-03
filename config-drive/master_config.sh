@@ -8,6 +8,7 @@ export SALT_MASTER_DEPLOY_IP=${SALT_MASTER_DEPLOY_IP:-"172.16.164.15"}
 export SALT_MASTER_MINION_ID=${SALT_MASTER_MINION_ID:-"cfg01.deploy-name.local"}
 export DEPLOY_NETWORK_GW=${DEPLOY_NETWORK_GW:-"172.16.164.1"}
 export DEPLOY_NETWORK_NETMASK=${DEPLOY_NETWORK_NETMASK:-"255.255.255.192"}
+export DEPLOY_NETWORK_MTU=${DEPLOY_NETWORK_MTU:-"1500"}
 export DNS_SERVERS=${DNS_SERVERS:-"8.8.8.8"}
 export http_proxy=${http_proxy:-""}
 export https_proxy=${https_proxy:-""}
