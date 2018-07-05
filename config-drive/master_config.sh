@@ -54,8 +54,9 @@ function process_formulas(){
     for formula_service in $(ls /usr/share/salt-formulas/reclass/service/); do
         #Since some salt formula names contain "-" and in symlinks they should contain "_" adding replacement
         formula_service=${formula_service//-/$'_'}
-        [ ! -L "${RECLASS_ROOT}/classes/service/${formula_service}" ] && \
+        if [ ! -L "${RECLASS_ROOT}/classes/service/${formula_service}" ]; then
             ln -sf ${FORMULAS_PATH}/reclass/service/${formula_service} ${RECLASS_ROOT}/classes/service/${formula_service}
+        fi
     done
 }
 
@@ -94,6 +95,10 @@ chmod -R 644 /srv/salt/reclass/classes/system/*  || true
 echo "Configuring salt"
 envsubst < /root/minion.conf > /etc/salt/minion.d/minion.conf
 enable_services
+
+# Wait for salt-master and salt-minion to wake up after restart
+salt-call --timeout=120 test.ping
+
 while true; do
     salt-key | grep "$SALT_MASTER_MINION_ID" && break
     sleep 5
@@ -130,9 +135,15 @@ if ! $(reclass -n ${SALT_MASTER_MINION_ID} > /dev/null ) ; then
   exit 1
 fi
 
+# PROD-21179: Run salt.minion.ca to prepare CA certificate before salt.minion.cert is used
+salt-call ${SALT_OPTS} state.sls salt.minion.ca
 salt-call ${SALT_OPTS} state.sls linux.network,linux,openssh,salt
 salt-call ${SALT_OPTS} pkg.install salt-master,salt-minion
+
 sleep 5
+# Wait for salt-master and salt-minion to wake up after restart
+salt-call --timeout=120 test.ping
+
 salt-call ${SALT_OPTS} state.sls salt
 salt-call ${SALT_OPTS} state.sls maas.cluster,maas.region
 salt-call ${SALT_OPTS} state.sls reclass
