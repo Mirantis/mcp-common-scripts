@@ -81,6 +81,31 @@ function process_network(){
   ifup ens3
 }
 
+function process_maas(){
+  _region=$(salt-call --out=text pillar.get maas:region:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
+  if [[ "${maas_cluster_enabled}" == 'true' ]]; then
+    salt-call ${SALT_OPTS} state.sls maas.cluster
+  else
+    echo 'WARNING: maas.cluster skipped!'
+  fi
+  if [[ "$_region" == 'true' ]]; then
+    salt-call ${SALT_OPTS} state.sls maas.region
+  else
+    echo 'WARNING: maas.region skipped!'
+  fi
+  # Don't move it under first cluster-only check!
+  if [[ "${maas_cluster_enabled}" == 'true' ]]; then
+    _post_maas_cfg
+  fi
+}
+
+function process_jenkins(){
+  _jjobs=$(salt-call --out=text pillar.get jenkins:client:job | awk '{print $2}')
+  if [[ "${_jjobs}" != '' ]]; then
+    salt-call ${SALT_OPTS} state.sls jenkins.client
+  fi
+}
+
 # Body ========================================================================
 process_network
 
@@ -146,18 +171,14 @@ sleep 5
 salt-call --timeout=120 test.ping
 
 salt-call ${SALT_OPTS} state.sls salt
-salt-call ${SALT_OPTS} state.sls maas.cluster,maas.region
 salt-call ${SALT_OPTS} state.sls reclass
 
-_post_maas_cfg
+maas_cluster_enabled=$(salt-call --out=text pillar.get maas:cluster:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
+process_maas
 
 ssh-keyscan cfg01 > /var/lib/jenkins/.ssh/known_hosts || true
 
-pillar=$(salt-call pillar.data jenkins:client)
-
-if [[ $pillar == *"job"* ]]; then
-  salt-call ${SALT_OPTS} state.sls jenkins.client
-fi
+process_jenkins
 
 stop_services="salt-api salt-master salt-minion jenkins maas-rackd.service maas-regiond.service postgresql.service"
 for s in ${stop_services} ; do
