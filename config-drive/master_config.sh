@@ -135,9 +135,10 @@ if ! $(reclass -n ${SALT_MASTER_MINION_ID} > /dev/null ) ; then
   exit 1
 fi
 
+salt-call ${SALT_OPTS} state.sls linux.network,linux,openssh
 # PROD-21179: Run salt.minion.ca to prepare CA certificate before salt.minion.cert is used
 salt-call ${SALT_OPTS} state.sls salt.minion.ca
-salt-call ${SALT_OPTS} state.sls linux.network,linux,openssh,salt
+salt-call ${SALT_OPTS} state.sls salt
 salt-call ${SALT_OPTS} pkg.install salt-master,salt-minion
 
 sleep 5
