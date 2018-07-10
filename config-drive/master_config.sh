@@ -129,11 +129,6 @@ while true; do
     sleep 5
 done
 
-sleep 5
-for i in $(salt-key -l accepted | grep -v Accepted | grep -v "$SALT_MASTER_MINION_ID"); do
-    salt-key -d $i -y
-done
-
 find /var/lib/jenkins/jenkins.model.JenkinsLocationConfiguration.xml -type f -print0 | xargs -0 sed -i -e 's/10.167.4.15/'$SALT_MASTER_DEPLOY_IP'/g'
 
 echo "updating local git repos"
