@@ -56,7 +56,7 @@ fi;
 ifup ens3
 
 echo "Configuring salt"
-rm /etc/salt/pki/minion/minion_master.pub
+rm -f /etc/salt/pki/minion/minion_master.pub
 envsubst < /root/minion.conf > /etc/salt/minion.d/minion.conf
 service salt-minion restart
 

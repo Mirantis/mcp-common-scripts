@@ -89,7 +89,8 @@ function process_maas(){
     echo 'WARNING: maas.cluster skipped!'
   fi
   if [[ "$_region" == 'true' ]]; then
-    salt-call ${SALT_OPTS} state.sls maas.region
+    # FIXME MAAS still can fail in rare race condition.
+    salt-call ${SALT_OPTS} state.sls maas.region || salt-call ${SALT_OPTS} state.sls maas.region
   else
     echo 'WARNING: maas.region skipped!'
   fi
