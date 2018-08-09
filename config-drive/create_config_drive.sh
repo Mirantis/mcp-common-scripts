@@ -64,10 +64,6 @@ done
 config_image=$1
 shift
 
-if [ "$ssh_key" ] && [ -f "$ssh_key" ]; then
-        echo "adding pubkey from $ssh_key"
-        ssh_key_data=$(cat "$ssh_key")
-fi
 
 uuid=$(uuidgen)
 if ! [ "$hostname" ]; then
@@ -76,6 +72,11 @@ fi
 
 trap 'rm -rf $config_dir' EXIT
 config_dir=$(mktemp -t -d configXXXXXX)
+
+if [ "$ssh_key" ] && [ -f "$ssh_key" ]; then
+        echo "adding pubkey from $ssh_key"
+        cp $ssh_key $config_dir/root_auth_keys
+fi
 
 if [ "$user_data" ] && [ -f "$user_data" ]; then
         echo "adding user data from $user_data"

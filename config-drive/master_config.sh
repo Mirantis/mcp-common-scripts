@@ -107,6 +107,18 @@ function process_jenkins(){
   fi
 }
 
+failsafe_ssh_key(){
+  if [ -f /mnt/root_auth_keys ]; then
+    echo "Installing failsafe public ssh key from /mnt/root_auth_keys to /root/.ssh/authorized_keys"
+    install -m 0700 -d /root/.ssh
+    cat /mnt/root_auth_keys >> /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/authorized_keys
+    sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
+    sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+    service ssh restart
+  fi
+}
+
 # Body ========================================================================
 process_network
 
@@ -117,6 +129,8 @@ chown -R root:root /srv/salt/reclass/* || true
 chown -R root:root /srv/salt/reclass/.git* || true
 chmod -R 644 /srv/salt/reclass/classes/cluster/* || true
 chmod -R 644 /srv/salt/reclass/classes/system/*  || true
+
+failsafe_ssh_key
 
 echo "Configuring salt"
 envsubst < /root/minion.conf > /etc/salt/minion.d/minion.conf
