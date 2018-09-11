@@ -82,6 +82,11 @@ function process_network(){
 }
 
 function process_maas(){
+  postgres_enabled=$(salt-call --out=text pillar.get postgresql:server:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]")
+  if [[ "${postgres_enabled}" == "true" ]]; then
+    salt-call ${SALT_OPTS} state.sls postgresql.server
+  fi
+
   _region=$(salt-call --out=text pillar.get maas:region:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
   if [[ "${maas_cluster_enabled}" == 'true' ]]; then
     salt-call ${SALT_OPTS} state.sls maas.cluster
