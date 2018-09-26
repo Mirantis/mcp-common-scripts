@@ -203,6 +203,9 @@ master_config:
       systemctl stop ${s} || true
       sleep 1
     done
+    # Set bootstrap-done flag for future
+    mkdir -p /var/log/mcp/
+    touch /var/log/mcp/.bootstrap_done
     sync
     reboot
 runcmd:

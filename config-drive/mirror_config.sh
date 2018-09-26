@@ -66,3 +66,6 @@ if [[ ! $(docker stack ls) ]] ; then
   docker_ca_wa
 fi
 
+# Set bootstrap-done flag for future
+mkdir -p /var/log/mcp/
+touch /var/log/mcp/.bootstrap_done
