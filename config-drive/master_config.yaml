@@ -1,5 +1,6 @@
 #cloud-config
-output: {all: '| tee -a /var/log/cloud-init-output.log'}
+output:
+  all: '| tee -a /var/log/cloud-init-output.log /dev/tty0'
 write_files:
   - owner: root:root
     path: /etc/cloud/master_environment
