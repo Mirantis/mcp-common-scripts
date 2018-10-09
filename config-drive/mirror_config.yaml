@@ -6,10 +6,11 @@ write_files:
   path: /etc/cloud/mirror_environment
   permissions: '0644'
   content: |
-    export SALT_MASTER_DEPLOY_IP=10.1.0.14
-    export APTLY_DEPLOY_IP=10.1.0.14
-    export APTLY_DEPLOY_NETMASK=255.255.0.0
-    export APTLY_MINION_ID=apt01.deploy-name.local
+    [ -f /etc/cloud/mirror_environment_override ] && . /etc/cloud/mirror_environment_override
+    export SALT_MASTER_DEPLOY_IP=${SALT_MASTER_DEPLOY_IP:-"10.1.0.14"}
+    export APTLY_DEPLOY_IP=${APTLY_DEPLOY_IP:-"10.1.0.14"}
+    export APTLY_DEPLOY_NETMASK=${APTLY_DEPLOY_NETMASK:-"255.255.0.0"}
+    export APTLY_MINION_ID=${APTLY_MINION_ID:-"apt01.deploy-name.local"}
 mirror_config:
 - &mirror_config |
     function docker_ca_wa(){
