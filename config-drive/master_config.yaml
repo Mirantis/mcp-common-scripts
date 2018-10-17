@@ -123,6 +123,23 @@ master_config:
       fi
     }
 
+    function process_salt_base(){
+      # PROD-21179| PROD-21792 : To describe such trick's around salt.XX state ordering
+      salt-call ${SALT_OPTS} state.sls salt.master
+      # Wait for salt-master to wake up after restart
+      sleep 5
+      salt-call --timeout=120 test.ping
+      # Run salt.minion.ca to prepare CA certificate before salt.minion.cert is used
+      salt-call ${SALT_OPTS} state.sls salt.minion.ca
+      salt-call ${SALT_OPTS} state.sls salt.minion
+      # Wait for salt-minion to wake up after restart
+      sleep 5
+      salt-call --timeout=120 test.ping
+      salt-call ${SALT_OPTS} state.sls salt
+      salt-call ${SALT_OPTS} state.sls reclass
+    }
+    #== Body ==================================================================#
+
     . /etc/cloud/master_environment
     printenv | sort -u
     process_network
@@ -181,18 +198,7 @@ master_config:
     fi
 
     salt-call ${SALT_OPTS} state.sls linux.network,linux,openssh
-    # PROD-21179: Run salt.minion.ca to prepare CA certificate before salt.minion.cert is used
-    salt-call ${SALT_OPTS} state.sls salt.minion.ca
-    salt-call ${SALT_OPTS} state.sls salt
-    salt-call ${SALT_OPTS} pkg.install salt-master,salt-minion
-
-    sleep 5
-    # Wait for salt-master and salt-minion to wake up after restart
-    salt-call --timeout=120 test.ping
-
-    salt-call ${SALT_OPTS} state.sls salt
-    salt-call ${SALT_OPTS} state.sls reclass
-
+    process_salt_base
     maas_cluster_enabled=$(salt-call --out=text pillar.get maas:cluster:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
     process_maas
 
