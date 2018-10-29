@@ -1,0 +1,5 @@
+[gerrit]
+host=gerrit.mcp.mirantis.com
+port=29418
+project=mcp/mcp-common-scripts.git
+
