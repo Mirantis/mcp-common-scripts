@@ -87,6 +87,9 @@ cat <<EOF >> $(pwd)/${VM_NAME}-vm.xml
     <graphics type='vnc' port='-1' autoport='yes' listen='127.0.0.1'>
       <listen type='address' address='127.0.0.1'/>
     </graphics>
+    <rng model='virtio'>
+      <backend model='random'>/dev/random</backend>
+    </rng>
   </devices>
 </domain>
 EOF
