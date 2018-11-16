@@ -60,7 +60,7 @@ master_config:
     }
 
     function enable_services(){
-      local services="postgresql.service salt-api salt-master salt-minion jenkins"
+      local services="postgresql.service salt-api salt-master salt-minion"
       for s in ${services} ; do
         systemctl enable ${s} || true
         systemctl restart ${s} || true
@@ -104,11 +104,47 @@ master_config:
       fi
     }
 
-    function process_jenkins(){
-      _jjobs=$(salt-call --out=text pillar.get jenkins:client:job | awk '{print $2}')
-      if [[ "${_jjobs}" != "" ]]; then
-        salt-call ${SALT_OPTS} state.sls jenkins.client
+    function process_jenkins() {
+      # INFO: jenkins is in docker in 2019.x releases
+      if [ -f /root/jenkins_in_docker ]; then
+        rm -v /root/jenkins_in_docker
+        export JENKINS_HOME=/srv/volumes/jenkins
+        _swarm=$(salt-call --out=text pillar.get docker:swarm:advertise_addr | awk '{print $2}')
+        if [[ "${_swarm}" != "" ]]; then
+          salt-call ${SALT_OPTS} state.sls docker.swarm
+        fi
+        _nginx=$(salt-call --out=text pillar.get nginx:server:enabled | awk '{print $2}')
+        if [[ "${_nginx}" != "" ]]; then
+          salt-call ${SALT_OPTS} state.sls nginx
+        fi
+        _docker=$(salt-call --out=text pillar.get docker:client:enabled | awk '{print $2}')
+        if [[ "${_docker}" != "" ]]; then
+          salt-call ${SALT_OPTS} state.sls docker.client
+        fi
+        _jenkins=$(salt-call --out=text pillar.get jenkins:client | awk '{print $2}')
+        if [[ "${_jenkins}" != "" ]]; then
+          salt-call ${SALT_OPTS} state.sls jenkins.client
+        fi
+      else
+        export JENKINS_HOME=/var/lib/jenkins
+        systemctl enable jenkins
+        systemctl start jenkins
+        # Wait for jenkins to be functional
+        jport=$(salt-call --out=text pillar.get jenkins:master:http:port | awk '{print $2}')
+        jport=${jport:-8081}
+        wait_time=0
+        until [[ $(curl -sL -w "%{http_code}" localhost:$jport -o /dev/null) == 200 ]] || [ $wait_time -eq 15 ]; do
+          sleep $(( wait_time++ ))
+        done
+        _jjobs=$(salt-call --out=text pillar.get jenkins:client:job | awk '{print $2}')
+        if [[ "${_jjobs}" != "" ]]; then
+          salt-call ${SALT_OPTS} state.sls jenkins.client
+        fi
+        systemctl stop jenkins
+        find ${JENKINS_HOME}/jenkins.model.JenkinsLocationConfiguration.xml -type f -print0 | xargs -0 sed -i -e "s/10.167.4.15/$SALT_MASTER_DEPLOY_IP/g"
       fi
+
+      ssh-keyscan cfg01 > ${JENKINS_HOME}/.ssh/known_hosts || true
     }
 
     failsafe_ssh_key(){
@@ -171,8 +207,6 @@ master_config:
       sleep 5
     done
 
-    find /var/lib/jenkins/jenkins.model.JenkinsLocationConfiguration.xml -type f -print0 | xargs -0 sed -i -e "s/10.167.4.15/$SALT_MASTER_DEPLOY_IP/g"
-
     echo "updating local git repos"
     if [[ "$PIPELINES_FROM_ISO" == "true" ]] ; then
       cp -r /mnt/mk-pipelines/* /home/repo/mk/mk-pipelines/
@@ -202,11 +236,9 @@ master_config:
     maas_cluster_enabled=$(salt-call --out=text pillar.get maas:cluster:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
     process_maas
 
-    ssh-keyscan cfg01 > /var/lib/jenkins/.ssh/known_hosts || true
-
     process_jenkins
 
-    stop_services="salt-api salt-master salt-minion jenkins maas-rackd.service maas-regiond.service postgresql.service"
+    stop_services="salt-api salt-master salt-minion maas-rackd.service maas-regiond.service postgresql.service"
     for s in ${stop_services} ; do
       systemctl stop ${s} || true
       sleep 1
