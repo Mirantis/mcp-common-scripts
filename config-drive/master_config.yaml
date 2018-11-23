@@ -144,7 +144,7 @@ master_config:
         find ${JENKINS_HOME}/jenkins.model.JenkinsLocationConfiguration.xml -type f -print0 | xargs -0 sed -i -e "s/10.167.4.15/$SALT_MASTER_DEPLOY_IP/g"
       fi
 
-      ssh-keyscan cfg01 > ${JENKINS_HOME}/.ssh/known_hosts || true
+      ssh-keyscan cfg01 > ${JENKINS_HOME}/.ssh/known_hosts && chmod a+r ${JENKINS_HOME}/.ssh/known_hosts || true
     }
 
     failsafe_ssh_key(){
