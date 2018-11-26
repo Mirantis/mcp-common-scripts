@@ -104,6 +104,16 @@ master_config:
       fi
     }
 
+    function wait_for_jenkins() {
+      # Wait for jenkins to be functional
+      jport=$(salt-call --out=text pillar.get jenkins:master:http:port | awk '{print $2}')
+      jport=${jport:-8081}
+      wait_time=0
+      until [[ $(curl -sL -w "%{http_code}" localhost:$jport -o /dev/null) == 200 ]] || [ $wait_time -eq 15 ]; do
+        sleep $(( wait_time++ ))
+      done
+    }
+
     function process_jenkins() {
       # INFO: jenkins is in docker in 2019.x releases
       if [ -f /root/jenkins_in_docker ]; then
@@ -121,21 +131,17 @@ master_config:
         if [[ "${_docker}" != "" ]]; then
           salt-call ${SALT_OPTS} state.sls docker.client
         fi
-        _jenkins=$(salt-call --out=text pillar.get jenkins:client | awk '{print $2}')
-        if [[ "${_jenkins}" != "" ]]; then
+        _jenabled=$(salt-call --out=text pillar.get docker:client:stack:jenkins | awk '{print $2}')
+        _jclient=$(salt-call --out=text pillar.get jenkins:client | awk '{print $2}')
+        if [[ "${_jenabled}" != "" && "${_jclient}" != "" ]]; then
+          wait_for_jenkins
           salt-call ${SALT_OPTS} state.sls jenkins.client
         fi
       else
         export JENKINS_HOME=/var/lib/jenkins
         systemctl enable jenkins
         systemctl start jenkins
-        # Wait for jenkins to be functional
-        jport=$(salt-call --out=text pillar.get jenkins:master:http:port | awk '{print $2}')
-        jport=${jport:-8081}
-        wait_time=0
-        until [[ $(curl -sL -w "%{http_code}" localhost:$jport -o /dev/null) == 200 ]] || [ $wait_time -eq 15 ]; do
-          sleep $(( wait_time++ ))
-        done
+        wait_for_jenkins
         _jjobs=$(salt-call --out=text pillar.get jenkins:client:job | awk '{print $2}')
         if [[ "${_jjobs}" != "" ]]; then
           salt-call ${SALT_OPTS} state.sls jenkins.client
