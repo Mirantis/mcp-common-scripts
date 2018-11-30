@@ -116,8 +116,8 @@ master_config:
 
     function process_jenkins() {
       # INFO: jenkins is in docker in 2019.x releases
-      if [ -f /root/jenkins_in_docker ]; then
-        rm -v /root/jenkins_in_docker
+      if [ -f /opt/jenkins_in_docker ]; then
+        rm -v /opt/jenkins_in_docker
         export JENKINS_HOME=/srv/volumes/jenkins
         _swarm=$(salt-call --out=text pillar.get docker:swarm:advertise_addr | awk '{print $2}')
         if [[ "${_swarm}" != "" ]]; then
