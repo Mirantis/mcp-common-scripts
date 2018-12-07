@@ -60,8 +60,11 @@ master_config:
     }
 
     function enable_services(){
-      local services="postgresql.service salt-api salt-master salt-minion"
-      for s in ${services} ; do
+      local services="salt-api salt-master salt-minion"
+      if [ ! -f /opt/postgresql_in_docker ]; then
+        local services="${services} postgresql.service"
+      fi
+        for s in ${services} ; do
         systemctl enable ${s} || true
         systemctl restart ${s} || true
       done
@@ -81,9 +84,15 @@ master_config:
     }
 
     function process_maas(){
-      postgres_enabled=$(salt-call --out=text pillar.get postgresql:server:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]")
-      if [[ "${postgres_enabled}" == "true" ]]; then
-        salt-call ${SALT_OPTS} state.sls postgresql.server
+      if [ -f /opt/postgresql_in_docker ]; then
+        systemctl disable postgresql.service
+        wait_for_postgresql
+        salt-call ${SALT_OPTS} state.sls postgresql.client
+      else
+        postgres_enabled=$(salt-call --out=text pillar.get postgresql:server:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]")
+        if [[ "${postgres_enabled}" == "true" ]]; then
+          salt-call ${SALT_OPTS} state.sls postgresql.server
+        fi
       fi
 
       _region=$(salt-call --out=text pillar.get maas:region:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
@@ -104,6 +113,18 @@ master_config:
       fi
     }
 
+    function wait_for_postgresql() {
+      salt_string="salt-call --out=text pillar.get postgresql:client:server:server01:admin"
+      pg_port=$(${salt_string}:port | awk '{print $2}')
+      pg_host=$(${salt_string}:host | awk '{print $2}')
+      wait_time=0
+      until [[ $(/usr/bin/pg_isready -h ${pg_host} -p ${pg_port} | awk '{ print $3 }' ) == 'accepting' ]] || [ $wait_time -eq 20 ];
+      do
+        echo "Waiting for postgres at: ${pg_host}:${pg_port}"
+        sleep $(( wait_time++  ));
+      done
+    }
+
     function wait_for_jenkins() {
       # Wait for jenkins to be functional
       jport=$(salt-call --out=text pillar.get jenkins:master:http:port | awk '{print $2}')
@@ -114,22 +135,25 @@ master_config:
       done
     }
 
+    function process_swarm() {
+      _swarm=$(salt-call --out=text pillar.get docker:swarm:advertise_addr | awk '{print $2}')
+      if [[ "${_swarm}" != "" ]]; then
+        salt-call ${SALT_OPTS} state.sls docker.swarm
+      fi
+      _docker=$(salt-call --out=text pillar.get docker:client:enabled | awk '{print $2}')
+      if [[ "${_docker}" != "" ]]; then
+        salt-call ${SALT_OPTS} state.sls docker.client
+      fi
+    }
+
     function process_jenkins() {
       # INFO: jenkins is in docker in 2019.x releases
       if [ -f /opt/jenkins_in_docker ]; then
         rm -v /opt/jenkins_in_docker
         export JENKINS_HOME=/srv/volumes/jenkins
-        _swarm=$(salt-call --out=text pillar.get docker:swarm:advertise_addr | awk '{print $2}')
-        if [[ "${_swarm}" != "" ]]; then
-          salt-call ${SALT_OPTS} state.sls docker.swarm
-        fi
         _nginx=$(salt-call --out=text pillar.get nginx:server:enabled | awk '{print $2}')
         if [[ "${_nginx}" != "" ]]; then
           salt-call ${SALT_OPTS} state.sls nginx
-        fi
-        _docker=$(salt-call --out=text pillar.get docker:client:enabled | awk '{print $2}')
-        if [[ "${_docker}" != "" ]]; then
-          salt-call ${SALT_OPTS} state.sls docker.client
         fi
         _jenabled=$(salt-call --out=text pillar.get docker:client:stack:jenkins | awk '{print $2}')
         _jclient=$(salt-call --out=text pillar.get jenkins:client | awk '{print $2}')
@@ -240,9 +264,16 @@ master_config:
     salt-call ${SALT_OPTS} state.sls linux.network,linux,openssh
     process_salt_base
     maas_cluster_enabled=$(salt-call --out=text pillar.get maas:cluster:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
-    process_maas
+
+    if [ -f /opt/jenkins_in_docker ] || [ -f /opt/postgresql_in_docker ]; then
+      process_swarm
+    fi
+    if [ -f /opt/jenkins_in_docker ] && [ ! -f /opt/postgresql_in_docker ]; then
+      docker stack rm postgresql || true
+    fi
 
     process_jenkins
+    process_maas
 
     stop_services="salt-api salt-master salt-minion maas-rackd.service maas-regiond.service postgresql.service"
     for s in ${stop_services} ; do
