@@ -97,14 +97,12 @@ if [ "$model" ] ; then
 fi
 
 if [ "$mk_pipelines" ] ; then
-        echo "adding mk_pipelines directory $mk_pipelines"
-        mkdir $config_dir/mk_pipelines
+        echo "adding mk-pipelines directory $mk_pipelines"
         cp -r $mk_pipelines $config_dir/mk-pipelines/
 fi
 
 if [ "$pipeline_library" ] ; then
-        echo "adding pipeline_library directory $pipeline_library"
-        mkdir $config_dir/pipeline_library
+        echo "adding pipeline-library directory $pipeline_library"
         cp -r $pipeline_library $config_dir/pipeline-library/
 fi
 
