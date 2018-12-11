@@ -130,7 +130,7 @@ master_config:
       jport=$(salt-call --out=text pillar.get jenkins:master:http:port | awk '{print $2}')
       jport=${jport:-8081}
       wait_time=0
-      until [[ $(curl -sL -w "%{http_code}" localhost:$jport -o /dev/null) == 200 ]] || [ $wait_time -eq 15 ]; do
+      until [[ $(curl -sL -w "%{http_code}" localhost:$jport -o /dev/null) == 200 ]] || [ $wait_time -eq 20 ]; do
         sleep $(( wait_time++ ))
       done
     }
