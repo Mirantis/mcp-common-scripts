@@ -227,6 +227,11 @@ master_config:
 
     echo "Configuring salt"
     envsubst < /root/minion.conf > /etc/salt/minion.d/minion.conf
+    if [ -f /mnt/gpg/salt_master_pillar.asc ]; then
+      mkdir /etc/salt/gpgkeys
+      chmod 700 /etc/salt/gpgkeys
+      GNUPGHOME=/etc/salt/gpgkeys gpg --import /mnt/gpg/salt_master_pillar.asc
+    fi
     enable_services
 
     # Wait for salt-master and salt-minion to wake up after restart
