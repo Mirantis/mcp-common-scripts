@@ -6,12 +6,12 @@
 # -u/--user-data option).
 
 usage () {
-        echo "usage: ${0##*/}: [--ssh-key <pubkey>] [--vendor-data <file>] [--user-data <file>] [--hostname <hostname>] [--model <model>] [--mk-pipelines <mk-pipelines>] [--pipeline-library <pipeline-library>] <imagename>"
+        echo "usage: ${0##*/}: [--ssh-key <pubkey>] [--gpg-key <file>] [--vendor-data <file>] [--user-data <file>] [--hostname <hostname>] [--model <model>] [--mk-pipelines <mk-pipelines>] [--pipeline-library <pipeline-library>] <imagename>"
 }
 
 ARGS=$(getopt \
-        -o k:u:v:h:m:mp:p \
-        --long help,hostname:,ssh-key:,user-data:,vendor-data:,model:,mk-pipelines:,pipeline-library: -n ${0##*/} \
+        -o k:g:u:v:h:m:mp:p \
+        --long help,hostname:,ssh-key:,gpg-key:,user-data:,vendor-data:,model:,mk-pipelines:,pipeline-library: -n ${0##*/} \
         -- "$@")
 
 if [ $? -ne 0 ]; then
@@ -29,6 +29,10 @@ while :; do
                         ;;
                 -k|--ssh-key)
                         ssh_key="$2"
+                        shift 2
+                        ;;
+                -g|--gpg-key)
+                        gpg_key="$2"
                         shift 2
                         ;;
                 -u|--user-data)
@@ -76,6 +80,12 @@ config_dir=$(mktemp -t -d configXXXXXX)
 if [ "$ssh_key" ] && [ -f "$ssh_key" ]; then
         echo "adding pubkey from $ssh_key"
         cp $ssh_key $config_dir/root_auth_keys
+fi
+
+if [ "$gpg_key" ] && [ -f "$gpg_key" ]; then
+        echo "adding gpg key from $gpg_key"
+        mkdir $config_dir/gpg
+        cp $gpg_key $config_dir/gpg/salt_master_pillar.asc
 fi
 
 if [ "$user_data" ] && [ -f "$user_data" ]; then
