@@ -162,7 +162,7 @@ master_config:
         if [ -n "${NOT_PULLED}" ]; then
           echo "Images ${NOT_PULLED} are not pulled yet"
           sleep 10;
-          (( counter++ ))
+          counter=$((counter+1))
         fi
       done
     }
