@@ -146,6 +146,25 @@ master_config:
       fi
     }
 
+    # $1 is stack name
+    function wait_for_docker_images() {
+      local IMAGES=$(docker stack ps ${1} --format "{{.Image}}" | awk -F ':' '{print $1}' | uniq);
+      local NOT_PULLED=""
+      local counter=0
+      until [[ -z "${NOT_PULLED}" ]] || [ counter -eq 90 ]; do
+        for image in ${IMAGES}; do
+            NOT_PULLED=""
+            local exist=$(docker images --format "{{if eq .Repository \"$image\"}}{{.Repository}}{{end}}");
+            if [ -z "${exist}" ]; then
+                NOT_PULLED="${image} ${NOT_PULLED}"
+            fi;
+        done
+        echo "Images ${NOT_PULLED} are not pulled yet"
+        sleep 10;
+        counter=$(( counter++ ))
+      done
+    }
+
     function process_jenkins() {
       # INFO: jenkins is in docker in 2019.x releases
       if [ -f /opt/jenkins_in_docker ]; then
@@ -272,6 +291,8 @@ master_config:
 
     if [ -f /opt/jenkins_in_docker ] || [ -f /opt/postgresql_in_docker ]; then
       process_swarm
+      wait_for_docker_images postgresql
+      wait_for_docker_images jenkins
     fi
     if [ -f /opt/jenkins_in_docker ] && [ ! -f /opt/postgresql_in_docker ]; then
       docker stack rm postgresql || true
