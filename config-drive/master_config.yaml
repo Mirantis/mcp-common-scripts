@@ -149,19 +149,21 @@ master_config:
     # $1 is stack name
     function wait_for_docker_images() {
       local IMAGES=$(docker stack ps ${1} --format "{{.Image}}" | awk -F ':' '{print $1}' | uniq);
-      local NOT_PULLED=""
+      local NOT_PULLED="NOT_PULLED"
       local counter=0
-      until [[ -z "${NOT_PULLED}" ]] || [ counter -eq 90 ]; do
+      until [[ -z "${NOT_PULLED}" ]] || [ $counter -eq 90 ]; do
+        NOT_PULLED=""
         for image in ${IMAGES}; do
-            NOT_PULLED=""
-            local exist=$(docker images --format "{{if eq .Repository \"$image\"}}{{.Repository}}{{end}}");
+            local exist=$(docker images --format "{{if eq .Repository \"$image\"}}{{.Repository}}{{end}}" | tr -d '\n');
             if [ -z "${exist}" ]; then
                 NOT_PULLED="${image} ${NOT_PULLED}"
             fi;
         done
-        echo "Images ${NOT_PULLED} are not pulled yet"
-        sleep 10;
-        counter=$(( counter++ ))
+        if [ -n "${NOT_PULLED}" ]; then
+          echo "Images ${NOT_PULLED} are not pulled yet"
+          sleep 10;
+          $(( counter++ ))
+        fi
       done
     }
 
