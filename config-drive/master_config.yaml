@@ -84,7 +84,9 @@ master_config:
     }
 
     function process_maas(){
-      if [ -f /opt/postgresql_in_docker ]; then
+      maas_cluster_enabled=$(salt-call --out=text pillar.get maas:cluster:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
+      _region=$(salt-call --out=text pillar.get maas:region:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
+      if ([ -f /opt/postgresql_in_docker ] && ([[ "${maas_cluster_enabled}" == "true" ]] || [[ "${_region}" == "true" ]])); then
         systemctl disable postgresql.service
         wait_for_postgresql
         salt-call ${SALT_OPTS} state.sls postgresql.client
@@ -95,15 +97,13 @@ master_config:
         fi
       fi
 
-      _region=$(salt-call --out=text pillar.get maas:region:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
       if [[ "${maas_cluster_enabled}" == "true" ]]; then
         salt-call ${SALT_OPTS} state.sls maas.cluster
       else
         echo "WARNING: maas.cluster skipped!"
       fi
       if [[ "$_region" == "true" ]]; then
-        # FIXME MAAS still can fail in rare race condition.
-        salt-call ${SALT_OPTS} state.sls maas.region || salt-call ${SALT_OPTS} state.sls maas.region
+        salt-call ${SALT_OPTS} state.sls maas.region
       else
         echo "WARNING: maas.region skipped!"
       fi
@@ -289,7 +289,7 @@ master_config:
 
     salt-call ${SALT_OPTS} state.sls linux.network,linux,openssh
     process_salt_base
-    maas_cluster_enabled=$(salt-call --out=text pillar.get maas:cluster:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
+
 
     if [ -f /opt/jenkins_in_docker ] || [ -f /opt/postgresql_in_docker ]; then
       process_swarm
