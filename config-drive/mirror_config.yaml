@@ -11,12 +11,13 @@ write_files:
     export APTLY_DEPLOY_IP=${APTLY_DEPLOY_IP:-"10.1.0.14"}
     export APTLY_DEPLOY_NETMASK=${APTLY_DEPLOY_NETMASK:-"255.255.0.0"}
     export APTLY_MINION_ID=${APTLY_MINION_ID:-"apt01.deploy-name.local"}
+
 mirror_config:
 - &mirror_config |
     function docker_ca_wa(){
       crt="/var/lib/docker/swarm/certificates/swarm-node.crt"
       if ! $(openssl x509 -checkend 86400 -noout -in ${crt}); then
-        echo "WARNING: swarm CA not expired yet.Something wrong with docker"
+        echo "WARNING: swarm CA not expired yet.Something other wrong with docker"
         echo "WARNING: docker CA WA not applied"
         exit 1
       fi

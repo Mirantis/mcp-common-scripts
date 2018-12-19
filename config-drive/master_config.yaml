@@ -13,17 +13,24 @@ write_files:
       export DEPLOY_NETWORK_NETMASK=${DEPLOY_NETWORK_NETMASK:-"255.255.255.192"}
       export DEPLOY_NETWORK_MTU=${DEPLOY_NETWORK_MTU:-"1500"}
       export DNS_SERVERS=${DNS_SERVERS:-"8.8.8.8"}
+
       export http_proxy=${http_proxy:-""}
       export https_proxy=${https_proxy:-""}
+
+      export MCP_VERSION=${MCP_VERSION:-"stable"}
+
       export PIPELINES_FROM_ISO=${PIPELINES_FROM_ISO:-"true"}
       export PIPELINE_REPO_URL=${PIPELINE_REPO_URL:-"https://github.com/Mirantis"}
-      export MCP_VERSION=${MCP_VERSION:-"stable"}
-      export MCP_SALT_REPO_KEY=${MCP_SALT_REPO_KEY:-"http://apt.mirantis.com/public.gpg"}
-      export MCP_SALT_REPO_URL=${MCP_SALT_REPO_URL:-"http://apt.mirantis.com/xenial"}
-      export MCP_SALT_REPO=${MCP_SALT_REPO:-"deb [arch=amd64] $MCP_SALT_REPO_URL $MCP_VERSION salt"}
+
+      export MCP_SALT_REPO_URL=${MCP_SALT_REPO_URL:-"http://mirror.mirantis.com/"}
+      export MCP_SALT_REPO=${MCP_SALT_REPO:-"deb [arch=amd64] $MCP_SALT_REPO_URL/$MCP_VERSION/salt-formulas/xenial xenial main"}
+      export MCP_SALT_REPO_UPDATES=${MCP_SALT_REPO_UPDATES:-"deb [arch=amd64] $MCP_SALT_REPO_URL/update/$MCP_VERSION/salt-formulas/xenial xenial main"}
+      export MCP_SALT_REPO_KEY=${MCP_SALT_REPO_KEY:-"${MCP_SALT_REPO_URL}/${MCP_VERSION}/salt-formulas/xenial/archive-salt-formulas.key"}
+
       export FORMULAS=${FORMULAS:-"salt-formula-*"}
-      export SALT_OPTS=${SALT_OPTS:-"-l debug -t 10 --retcode-passthrough --no-color"}
+      export SALT_OPTS=${SALT_OPTS:-"-l debug -t 30 --retcode-passthrough --no-color"}
       export CFG_BOOTSTRAP_DRIVE_URL=${CFG_BOOTSTRAP_DRIVE_URL:-""}
+
 master_config:
   - &master_config |
     function _post_maas_cfg() {
@@ -44,8 +51,9 @@ master_config:
       local RECLASS_ROOT=${RECLASS_ROOT:-/srv/salt/reclass/}
       local FORMULAS_PATH=${FORMULAS_PATH:-/usr/share/salt-formulas}
 
-      curl -s $MCP_SALT_REPO_KEY | apt-key add -
-      echo $MCP_SALT_REPO > /etc/apt/sources.list.d/mcp_salt.list
+      curl -s ${MCP_SALT_REPO_KEY} | apt-key add -
+      echo "${MCP_SALT_REPO}" > /etc/apt/sources.list.d/mcp_salt.list
+      echo "${MCP_SALT_REPO_UPDATES}" >> /etc/apt/sources.list.d/mcp_salt.list
       apt-get update
       apt-get install -y salt-formula-*
 
@@ -233,8 +241,11 @@ master_config:
 
     echo "Preparing metadata model"
     if [[ -n "${CFG_BOOTSTRAP_DRIVE_URL}" ]]; then
-      wget -O /tmp/cfg01.iso "$cfg_bootstrap_drive"
-      mount -o loop /tmp/cfg01.iso /mnt/
+      echo "CFG_BOOTSTRAP_DRIVE_URL detected,downloading..."
+      _tname="cfg01_${RANDOM}.iso"
+      _wget_opts="--progress=dot:mega --waitretry=15 --retry-connrefused"
+      wget ${_wget_opts} -O /${_tname} "${CFG_BOOTSTRAP_DRIVE_URL}"
+      mount -o loop /${_tname} /mnt/
     else
       mount /dev/cdrom /mnt/
     fi
