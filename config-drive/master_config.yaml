@@ -226,6 +226,8 @@ master_config:
       salt-call --timeout=120 test.ping
       # Run salt.minion.ca to prepare CA certificate before salt.minion.cert is used
       salt-call ${SALT_OPTS} state.sls salt.minion.ca
+      # Add sleep for completion of postponed restart of salt-minion. PROD-25986
+      sleep 15
       salt-call ${SALT_OPTS} state.sls salt.minion
       # Wait for salt-minion to wake up after restart
       sleep 5
