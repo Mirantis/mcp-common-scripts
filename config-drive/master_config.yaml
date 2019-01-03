@@ -152,27 +152,7 @@ master_config:
       if [[ "${_docker}" != "" ]]; then
         salt-call ${SALT_OPTS} state.sls docker.client
       fi
-    }
-
-    # $1 is stack name
-    function wait_for_docker_images() {
-      local IMAGES=$(docker stack ps ${1} --format "{{.Image}}" | awk -F ':' '{print $1}' | uniq);
-      local NOT_PULLED="NOT_PULLED"
-      local counter=0
-      until [[ -z "${NOT_PULLED}" ]] || [ $counter -eq 90 ]; do
-        NOT_PULLED=""
-        for image in ${IMAGES}; do
-            local exist=$(docker images --format "{{if eq .Repository \"$image\"}}{{.Repository}}{{end}}" | tr -d '\n');
-            if [ -z "${exist}" ]; then
-                NOT_PULLED="${image} ${NOT_PULLED}"
-            fi;
-        done
-        if [ -n "${NOT_PULLED}" ]; then
-          echo "Images ${NOT_PULLED} are not pulled yet"
-          sleep 10;
-          counter=$((counter+1))
-        fi
-      done
+      salt-call ${SALT_OPTS} state.sls docker.client.images
     }
 
     function process_jenkins() {
@@ -306,8 +286,6 @@ master_config:
 
     if [ -f /opt/jenkins_in_docker ] || [ -f /opt/postgresql_in_docker ]; then
       process_swarm
-      wait_for_docker_images postgresql
-      wait_for_docker_images jenkins
     fi
     if [ -f /opt/jenkins_in_docker ] && [ ! -f /opt/postgresql_in_docker ]; then
       docker stack rm postgresql || true
