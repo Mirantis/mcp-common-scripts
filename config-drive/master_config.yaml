@@ -9,10 +9,6 @@ write_files:
       [ -f /etc/cloud/master_environment_override ] && . /etc/cloud/master_environment_override
       export SALT_MASTER_DEPLOY_IP=${SALT_MASTER_DEPLOY_IP:-"172.16.164.15"}
       export SALT_MASTER_MINION_ID=${SALT_MASTER_MINION_ID:-"cfg01.deploy-name.local"}
-      export DEPLOY_NETWORK_GW=${DEPLOY_NETWORK_GW:-"172.16.164.1"}
-      export DEPLOY_NETWORK_NETMASK=${DEPLOY_NETWORK_NETMASK:-"255.255.255.192"}
-      export DEPLOY_NETWORK_MTU=${DEPLOY_NETWORK_MTU:-"1500"}
-      export DNS_SERVERS=${DNS_SERVERS:-"8.8.8.8"}
 
       export http_proxy=${http_proxy:-""}
       export https_proxy=${https_proxy:-""}
@@ -20,7 +16,8 @@ write_files:
       export MCP_VERSION=${MCP_VERSION:-"stable"}
 
       export PIPELINES_FROM_ISO=${PIPELINES_FROM_ISO:-"true"}
-      export PIPELINE_REPO_URL=${PIPELINE_REPO_URL:-"https://github.com/Mirantis"}
+      export MK_PIPELINES_URL=${MK_PIPELINES_URL:-"https://gerrit.mcp.mirantis.com/mk/mk-pipelines.git"}
+      export PIPELINE_LIB_URL=${PIPELINE_LIB_URL:-"https://gerrit.mcp.mirantis.com/mcp-ci/pipeline-library.git"}
 
       export MCP_SALT_REPO_URL=${MCP_SALT_REPO_URL:-"http://mirror.mirantis.com/"}
       export MCP_SALT_REPO=${MCP_SALT_REPO:-"deb [arch=amd64] $MCP_SALT_REPO_URL/$MCP_VERSION/salt-formulas/xenial xenial main"}
@@ -43,7 +40,7 @@ master_config:
       maas ${PROFILE} package-repository update ${main_arch_id} "arches=amd64" || true
       # Remove stale notifications, which appear during sources configuration.
       for i in $(maas ${PROFILE} notifications read | jq ".[]| .id"); do
-       maas ${PROFILE} notification delete ${i} || true
+        maas ${PROFILE} notification delete ${i} || true
       done
     }
 
@@ -54,8 +51,7 @@ master_config:
       curl -s ${MCP_SALT_REPO_KEY} | apt-key add -
       echo "${MCP_SALT_REPO}" > /etc/apt/sources.list.d/mcp_salt.list
       echo "${MCP_SALT_REPO_UPDATES}" >> /etc/apt/sources.list.d/mcp_salt.list
-      apt-get update
-      apt-get install -y salt-formula-*
+      apt update && apt install -y "${FORMULAS}"
 
       [ ! -d ${RECLASS_ROOT}/classes/service ] && mkdir -p ${RECLASS_ROOT}/classes/service
       for formula_service in $(ls /usr/share/salt-formulas/reclass/service/); do
@@ -78,40 +74,27 @@ master_config:
       done
     }
 
-    function process_network(){
-      echo "Configuring network interfaces"
-      find /etc/network/interfaces.d/ -type f -delete
-      kill $(pidof /sbin/dhclient) || /bin/true
-      envsubst < /root/interfaces > /etc/network/interfaces
-      ip a flush dev ens3
-      rm -f /var/run/network/ifstate.ens3
-      if [[ $(grep -E "^\ *gateway\ " /etc/network/interfaces) ]]; then
-      (ip r s | grep ^default) && ip r d default || /bin/true
-      fi;
-      ifup ens3
-    }
-
     function process_maas(){
       maas_cluster_enabled=$(salt-call --out=text pillar.get maas:cluster:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
       _region=$(salt-call --out=text pillar.get maas:region:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
       if ([ -f /opt/postgresql_in_docker ] && ([[ "${maas_cluster_enabled}" == "true" ]] || [[ "${_region}" == "true" ]])); then
         systemctl disable postgresql.service
         wait_for_postgresql
-        salt-call ${SALT_OPTS} state.sls postgresql.client
+        salt-call ${SALT_OPTS} state.apply postgresql.client
       else
         postgres_enabled=$(salt-call --out=text pillar.get postgresql:server:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]")
         if [[ "${postgres_enabled}" == "true" ]]; then
-          salt-call ${SALT_OPTS} state.sls postgresql.server
+          salt-call ${SALT_OPTS} state.apply postgresql.server
         fi
       fi
 
       if [[ "${maas_cluster_enabled}" == "true" ]]; then
-        salt-call ${SALT_OPTS} state.sls maas.cluster
+        salt-call ${SALT_OPTS} state.apply maas.cluster
       else
         echo "WARNING: maas.cluster skipped!"
       fi
       if [[ "$_region" == "true" ]]; then
-        salt-call ${SALT_OPTS} state.sls maas.region
+        salt-call ${SALT_OPTS} state.apply maas.region
       else
         echo "WARNING: maas.region skipped!"
       fi
@@ -146,13 +129,13 @@ master_config:
     function process_swarm() {
       _swarm=$(salt-call --out=text pillar.get docker:swarm:advertise_addr | awk '{print $2}')
       if [[ "${_swarm}" != "" ]]; then
-        salt-call ${SALT_OPTS} state.sls docker.swarm
+        salt-call ${SALT_OPTS} state.apply docker.swarm
       fi
       _docker=$(salt-call --out=text pillar.get docker:client:enabled | awk '{print $2}')
       if [[ "${_docker}" != "" ]]; then
-        salt-call ${SALT_OPTS} state.sls docker.client
+        salt-call ${SALT_OPTS} state.apply docker.client
       fi
-      salt-call ${SALT_OPTS} state.sls docker.client.images
+      salt-call ${SALT_OPTS} state.apply docker.client.images
     }
 
     function process_jenkins() {
@@ -162,13 +145,13 @@ master_config:
         export JENKINS_HOME=/srv/volumes/jenkins
         _nginx=$(salt-call --out=text pillar.get nginx:server:enabled | awk '{print $2}')
         if [[ "${_nginx}" != "" ]]; then
-          salt-call ${SALT_OPTS} state.sls nginx
+          salt-call ${SALT_OPTS} state.apply nginx
         fi
         _jenabled=$(salt-call --out=text pillar.get docker:client:stack:jenkins | awk '{print $2}')
         _jclient=$(salt-call --out=text pillar.get jenkins:client | awk '{print $2}')
         if [[ "${_jenabled}" != "" && "${_jclient}" != "" ]]; then
           wait_for_jenkins
-          salt-call ${SALT_OPTS} state.sls jenkins.client
+          salt-call ${SALT_OPTS} state.apply jenkins.client
         fi
       else
         export JENKINS_HOME=/var/lib/jenkins
@@ -177,7 +160,7 @@ master_config:
         wait_for_jenkins
         _jjobs=$(salt-call --out=text pillar.get jenkins:client:job | awk '{print $2}')
         if [[ "${_jjobs}" != "" ]]; then
-          salt-call ${SALT_OPTS} state.sls jenkins.client
+          salt-call ${SALT_OPTS} state.apply jenkins.client
         fi
         systemctl stop jenkins
         find ${JENKINS_HOME}/jenkins.model.JenkinsLocationConfiguration.xml -type f -print0 | xargs -0 sed -i -e "s/10.167.4.15/$SALT_MASTER_DEPLOY_IP/g"
@@ -186,40 +169,27 @@ master_config:
       ssh-keyscan cfg01 > ${JENKINS_HOME}/.ssh/known_hosts && chmod a+r ${JENKINS_HOME}/.ssh/known_hosts || true
     }
 
-    failsafe_ssh_key(){
-      if [ -f /mnt/root_auth_keys ]; then
-        echo "Installing failsafe public ssh key from /mnt/root_auth_keys to /root/.ssh/authorized_keys"
-        install -m 0700 -d /root/.ssh
-        cat /mnt/root_auth_keys >> /root/.ssh/authorized_keys
-        chmod 600 /root/.ssh/authorized_keys
-        sed -i "s/^PermitRootLogin.*/PermitRootLogin yes/g" /etc/ssh/sshd_config
-        sed -i "s/^PasswordAuthentication.*/PasswordAuthentication yes/g" /etc/ssh/sshd_config
-        service ssh restart
-      fi
-    }
-
     function process_salt_base(){
       # PROD-21179| PROD-21792 : To describe such trick's around salt.XX state ordering
-      salt-call ${SALT_OPTS} state.sls salt.master
+      salt-call ${SALT_OPTS} state.apply salt.master
       # Wait for salt-master to wake up after restart
       sleep 5
       salt-call --timeout=120 test.ping
       # Run salt.minion.ca to prepare CA certificate before salt.minion.cert is used
-      salt-call ${SALT_OPTS} state.sls salt.minion.ca
+      salt-call ${SALT_OPTS} state.apply salt.minion.ca
       # Add sleep for completion of postponed restart of salt-minion. PROD-25986
       sleep 15
-      salt-call ${SALT_OPTS} state.sls salt.minion
+      salt-call ${SALT_OPTS} state.apply salt.minion
       # Wait for salt-minion to wake up after restart
       sleep 5
       salt-call --timeout=120 test.ping
-      salt-call ${SALT_OPTS} state.sls salt
-      salt-call ${SALT_OPTS} state.sls reclass
+      salt-call ${SALT_OPTS} state.apply salt
+      salt-call ${SALT_OPTS} state.apply reclass
     }
     #== Body ==================================================================#
 
     . /etc/cloud/master_environment
     printenv | sort -u
-    process_network
 
     echo "Preparing metadata model"
     if [[ -n "${CFG_BOOTSTRAP_DRIVE_URL}" ]]; then
@@ -227,24 +197,21 @@ master_config:
       _tname="cfg01_${RANDOM}.iso"
       _wget_opts="--progress=dot:mega --waitretry=15 --retry-connrefused"
       wget ${_wget_opts} -O /${_tname} "${CFG_BOOTSTRAP_DRIVE_URL}"
-      mount -o loop /${_tname} /mnt/
+      mount -o loop /${_tname} /mnt
     else
-      mount /dev/cdrom /mnt/
+      mount $(blkid -t TYPE=iso9660 -o device) /mnt
     fi
-    cp -rT /mnt/model/model /srv/salt/reclass
-    chown -R root:root /srv/salt/reclass/* || true
-    chown -R root:root /srv/salt/reclass/.git* || true
-    chmod -R 644 /srv/salt/reclass/classes/cluster/* || true
-    chmod -R 644 /srv/salt/reclass/classes/system/*  || true
-
-    failsafe_ssh_key
+    rsync -av /mnt/mcp/model/ /srv/salt/reclass/
+    chown -R root:root /srv/salt/reclass/ || true
+    find /srv/salt/reclass/classes/ -type d -exec chmod 0755 {} \;
+    find /srv/salt/reclass/classes/ -type f -exec chmod 0644 {} \;
 
     echo "Configuring salt"
     envsubst < /root/minion.conf > /etc/salt/minion.d/minion.conf
-    if [ -f /mnt/gpg/salt_master_pillar.asc ]; then
+    if [ -f /mnt/mcp/gpg/salt_master_pillar.asc ]; then
       mkdir /etc/salt/gpgkeys
-      chmod 700 /etc/salt/gpgkeys
-      GNUPGHOME=/etc/salt/gpgkeys gpg --import /mnt/gpg/salt_master_pillar.asc
+      chmod 0700 /etc/salt/gpgkeys
+      GNUPGHOME=/etc/salt/gpgkeys gpg --import /mnt/mcp/gpg/salt_master_pillar.asc
     fi
     enable_services
 
@@ -252,23 +219,21 @@ master_config:
     salt-call --timeout=120 test.ping
 
     while true; do
-    salt-key | grep "$SALT_MASTER_MINION_ID" && break
+    salt-key | grep -w "$SALT_MASTER_MINION_ID" && break
       sleep 5
     done
 
     echo "updating local git repos"
     if [[ "$PIPELINES_FROM_ISO" == "true" ]] ; then
-      cp -r /mnt/mk-pipelines/* /home/repo/mk/mk-pipelines/
-      cp -r /mnt/pipeline-library/* /home/repo/mcp-ci/pipeline-library/
+      rsync -av /mnt/mcp/mk-pipelines/ /home/repo/mk/mk-pipelines/
+      rsync -av /mnt/mcp/pipeline-library/ /home/repo/mcp-ci/pipeline-library/
       umount /mnt || true
-      chown -R git:www-data /home/repo/mk/mk-pipelines/*
-      chown -R git:www-data /home/repo/mcp-ci/pipeline-library/*
+      chown -R git:www-data /home/repo/mk/mk-pipelines /home/repo/mcp-ci/pipeline-library
     else
       umount /mnt || true
-      git clone --mirror "${PIPELINE_REPO_URL}/mk-pipelines.git" /home/repo/mk/mk-pipelines/
-      git clone --mirror "${PIPELINE_REPO_URL}/pipeline-library.git" /home/repo/mcp-ci/pipeline-library/
-      chown -R git:www-data /home/repo/mk/mk-pipelines/*
-      chown -R git:www-data /home/repo/mcp-ci/pipeline-library/*
+      git clone --mirror "${MK_PIPELINES_URL}" /home/repo/mk/mk-pipelines/
+      git clone --mirror "${PIPELINE_LIB_URL}" /home/repo/mcp-ci/pipeline-library/
+      chown -R git:www-data /home/repo/mk/mk-pipelines /home/repo/mcp-ci/pipeline-library
     fi
 
     process_formulas
@@ -280,7 +245,7 @@ master_config:
       exit 1
     fi
 
-    salt-call ${SALT_OPTS} state.sls linux.network,linux,openssh
+    salt-call ${SALT_OPTS} state.apply linux.system.repo,linux.network,linux.system,linux,openssh
     process_salt_base
 
 
@@ -303,6 +268,6 @@ master_config:
     mkdir -p /var/log/mcp/
     touch /var/log/mcp/.bootstrap_done
     sync
-    reboot
+    shutdown -r now
 runcmd:
    - [bash, -cex, *master_config]
