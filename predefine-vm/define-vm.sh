@@ -1,9 +1,18 @@
 #!/bin/bash -xe
 
+VM_MGM_BRIDGE_DISABLE=${VM_MGM_BRIDGE_DISABLE:-false}
+VM_CTL_BRIDGE_DISABLE=${VM_CTL_BRIDGE_DISABLE:-false}
 VM_MGM_BRIDGE_NAME=${VM_MGM_BRIDGE_NAME:-"br-mgm"}
 VM_CTL_BRIDGE_NAME=${VM_CTL_BRIDGE_NAME:-"br-ctl"}
+VM_MGM_NETWORK_NAME=${VM_MGM_NETWORK_NAME:-"mgm_network"}
+VM_CTL_NETWORK_NAME=${VM_CTL_NETWORK_NAME:-"ctl_network"}
 VM_MEM_KB=${VM_MEM_KB:-"12589056"}
 VM_CPUS=${VM_CPUS:-"4"}
+# optional params if you won't use bridge on host
+VM_MGM_NETWORK_GATEWAY=${VM_MGM_NETWORK_GATEWAY:-"192.168.56.1"}
+VM_MGM_NETWORK_MASK=${VM_MGM_NETWORK_MASK:-"255.255.255.0"}
+VM_CTL_NETWORK_GATEWAY=${VM_CTL_NETWORK_GATEWAY:-"192.168.57.1"}
+VM_CTL_NETWORK_MASK=${VM_CTL_NETWORK_MASK:-"255.255.255.0"}
 
 if [[ -z ${VM_NAME} ]]; then
   echo "ERROR: \$VM_NAME not set!"
@@ -17,6 +26,59 @@ if [[ ! -f ${VM_CONFIG_DISK} ]] || [[ -z ${VM_CONFIG_DISK} ]]; then
   echo "ERROR: \$VM_CONFIG_DISK not set, or file does not exist!"
   exit 1
 fi
+
+function check_packages {
+    PACKAGES="qemu-utils libvirt-bin qemu-kvm"
+    for i in $PACKAGES; do
+       dpkg -s $i &> /dev/null || { echo "Package $i is not installed!"; exit 1; }
+    done
+}
+
+function create_network {
+    local network=${1}
+    virsh net-destroy ${network} 2> /dev/null || true
+    virsh net-undefine ${network} 2> /dev/null || true
+    virsh net-define ${network}.xml
+    virsh net-autostart ${network}
+    virsh net-start ${network}
+}
+
+function create_bridge_network {
+    local network=$1
+    local bridge_name=$2
+    cat <<EOF > $(pwd)/${network}.xml
+<network>
+  <name>${network}</name>
+  <forward mode="bridge"/>
+  <bridge name="${bridge_name}" />
+</network>
+EOF
+    create_network ${network}
+}
+
+function create_host_network {
+    local network=$1
+    local gateway=$2
+    local netmask=$3
+    local nat=${4:-false}
+    cat <<EOF > $(pwd)/${network}.xml
+<network>
+  <name>${network}</name>
+  <bridge name="${network}" />
+  <ip address="${gateway}" netmask="${netmask}"/>
+EOF
+    if [[ ${nat} ]]; then
+        cat <<EOF>> $(pwd)/${network}.xml
+  <forward mode="nat"/>
+EOF
+    fi
+    cat <<EOF>> $(pwd)/${network}.xml
+</network>
+EOF
+    create_network ${network}
+}
+
+check_packages
 
 # Template definition
 cat <<EOF > $(pwd)/${VM_NAME}-vm.xml
@@ -60,21 +122,47 @@ cat <<EOF > $(pwd)/${VM_NAME}-vm.xml
       <readonly/>
       <address type='drive' controller='0' bus='0' target='0' unit='0'/>
     </disk>
+EOF
+if [[ ! ${VM_MGM_BRIDGE_DISABLE} ]]; then
+    create_bridge_network "${VM_MGM_NETWORK_NAME}" "${VM_MGM_BRIDGE_NAME}"
+    cat <<EOF >> $(pwd)/${VM_NAME}-vm.xml
     <interface type='bridge'>
       <source bridge='$VM_MGM_BRIDGE_NAME'/>
       <model type='virtio'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </interface>
 EOF
+else
+    create_host_network "${VM_MGM_NETWORK_NAME}" "${VM_MGM_NETWORK_GATEWAY}" "${VM_MGM_NETWORK_MASK}" true
+    cat <<EOF >> $(pwd)/${VM_NAME}-vm.xml
+    <interface type='network'>
+      <source network='$VM_MGM_NETWORK_NAME'/>
+      <model type='virtio'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+    </interface>
+EOF
+fi
+
 if [[ ! ${VM_CTL_BRIDGE_DISABLE} ]]; then
-cat <<EOF >> $(pwd)/${VM_NAME}-vm.xml
+    create_bridge_network "${VM_CTL_NETWORK_NAME}" "${VM_CTL_BRIDGE_NAME}"
+    cat <<EOF >> $(pwd)/${VM_NAME}-vm.xml
     <interface type='bridge'>
       <source bridge='$VM_CTL_BRIDGE_NAME'/>
       <model type='virtio'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
     </interface>
 EOF
+else
+    create_host_network "${VM_CTL_NETWORK_NAME}" "${VM_CTL_NETWORK_GATEWAY}" "${VM_CTL_NETWORK_MASK}"
+    cat <<EOF >> $(pwd)/${VM_NAME}-vm.xml
+    <interface type='network'>
+      <source network='$VM_CTL_NETWORK_NAME'/>
+      <model type='virtio'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+    </interface>
+EOF
 fi
+
 cat <<EOF >> $(pwd)/${VM_NAME}-vm.xml
     <serial type='pty'>
       <source path='/dev/pts/1'/>

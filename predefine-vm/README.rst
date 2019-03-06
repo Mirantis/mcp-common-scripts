@@ -1,3 +1,48 @@
+====================
+Deploy cfg01 locally
+====================
+
+Deploy cfg01 on Ubuntu with QEMU/KVM (libvirt)
+==============================================
+
+**Prerequisites**
+
+Script will check and install next required packages: qemu-utils libvirt-bin virtinst qemu-kvm.
+
+**Common info**
+
+Script gives you an ability to deploy cfg01 VM with provided cfg01 Qcwo2 disk
+image and config-drive iso file on your local laptop.
+
+Script is operating by next ENV variables:
+
+    * VM_NAME - the name of VM to be created in VirtualBox. Default: 'cfg01-mcp.local'.
+    * VM_SOURCE_DISK - the name of virtual disk to be used for virtual machine. Can be relative or absolute path.
+    * VM_CONFIG_DISK - same as VM_SOURCE_DISK, but for config-drive ISO file.
+    * VM_MGM_BRIDGE_NAME - Bridge name to use for deploy management network. Should have Internet access if not
+      offline case. Optional, default: 'br-mgm'
+    * VM_CTL_BRIDGE_NAME - Bridge name to use for control network. Optional, default: 'br-ctl'
+    * VM_MGM_BRIDGE_DISABLE - Do not use host bridge for deploy management network and create new nat-network.
+      Optional, default: false
+    * VM_CTL_BRIDGE_DISABLE - Do not use host bridge for control network and create host-only based new network.
+      Optional, default: false
+    * VM_MGM_NETWORK_NAME - Name for deploy management network. Optional, default: 'mgm_network'
+    * VM_CTL_NETWORK_NAME - Name for control network. Optional, default: 'ctl_network'
+    * VM_MGM_NETWORK_GATEWAY - NAT-Service network gateway for deploy management network.
+      Optional, default: '192.168.15.1'
+    * VM_MGM_NETWORK_MASK - Network mask for deploy management network. Optional, default: '255.255.255.0'
+    * VM_CTL_NETWORK_GATEWAY - Host-only based network gateway for control network.
+      Optional, default: '192.168.56.1'
+    * VM_CTL_NETWORK_MASK - Network mask for control network. Optional, default: '255.255.255.0'
+
+Script will check that disk and config-drive are present and then define needed networks and spawn virtual machine.
+Then check that VM is up and running.
+
+Once VM is up and running you can use ``virsh console`` to check what is going on during deploy.
+It is recommended to specify username and password during model generation for login via VM console if
+something goes wrong. Once you are logged in you can follow usual debug procedure for cfg01 node.
+
+
 Deploy cfg01 on Mac OS with VirtualBox
 ======================================
 
@@ -63,6 +108,6 @@ Script will go through next steps:
     * Run virtual machine.
 
 Once VM is up and running you can use VirtualBox VM console to check what is going on during deploy.
-It will drop all logs into console and it doesn't matter loged in user or not. It is good to specify during
-model generation username and password to be able to login via VM console if something goes wrong.
+It will drop all logs into console and it doesn't matter loged in user or not. It is recommended to specify
+username and password during model generation for login via VM console if something goes wrong.
 Once you are logged in you can follow usual debug procedure for cfg01 node.
