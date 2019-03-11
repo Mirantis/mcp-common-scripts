@@ -28,7 +28,7 @@ if [[ ! -f ${VM_CONFIG_DISK} ]] || [[ -z ${VM_CONFIG_DISK} ]]; then
 fi
 
 function check_packages {
-    PACKAGES="qemu-utils libvirt-bin qemu-kvm"
+    PACKAGES="libvirt-bin qemu-kvm"
     for i in $PACKAGES; do
        dpkg -s $i &> /dev/null || { echo "Package $i is not installed!"; exit 1; }
     done
@@ -138,7 +138,7 @@ else
     <interface type='network'>
       <source network='$VM_MGM_NETWORK_NAME'/>
       <model type='virtio'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </interface>
 EOF
 fi
