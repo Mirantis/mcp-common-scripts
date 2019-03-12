@@ -75,14 +75,14 @@ master_config:
     }
 
     function process_maas(){
-      maas_cluster_enabled=$(salt-call --out=text pillar.get maas:cluster:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
-      _region=$(salt-call --out=text pillar.get maas:region:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
+      maas_cluster_enabled=$(salt-call --out=newline_values_only pillar.get maas:cluster:enabled | tr "[:upper:]" "[:lower:]" )
+      _region=$(salt-call --out=newline_values_only pillar.get maas:region:enabled | tr "[:upper:]" "[:lower:]" )
       if ([ -f /opt/postgresql_in_docker ] && ([[ "${maas_cluster_enabled}" == "true" ]] || [[ "${_region}" == "true" ]])); then
         systemctl disable postgresql.service
         wait_for_postgresql
         salt-call ${SALT_OPTS} state.apply postgresql.client
       else
-        postgres_enabled=$(salt-call --out=text pillar.get postgresql:server:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]")
+        postgres_enabled=$(salt-call --out=newline_values_only pillar.get postgresql:server:enabled | tr "[:upper:]" "[:lower:]")
         if [[ "${postgres_enabled}" == "true" ]]; then
           salt-call ${SALT_OPTS} state.apply postgresql.server
         fi
@@ -118,24 +118,28 @@ master_config:
 
     function wait_for_jenkins() {
       # Wait for jenkins to be functional
-      jport=$(salt-call --out=text pillar.get jenkins:master:http:port | awk '{print $2}')
-      jport=${jport:-8081}
+      j_host=$(salt-call --out=newline_values_only pillar.get jenkins:client:master:host)
+      j_host=${j_host:-"localhost"}
+      j_port=$(salt-call --out=newline_values_only pillar.get jenkins:client:master:port)
+      j_port=${j_port:-"8081"}
+      j_prefix=$(salt-call --out=newline_values_only pillar.get jenkins:client:master:url_prefix)
+      j_prefix=${j_prefix:-""}
       wait_time=0
-      until [[ $(curl -sL -w "%{http_code}" localhost:$jport -o /dev/null) == 200 ]] || [ $wait_time -eq 20 ]; do
+      until [[ $(curl -sL -w "%{http_code}" ${j_host}:${j_port}${j_prefix} -o /dev/null) == 200 ]] || [ $wait_time -eq 20 ]; do
         sleep $(( wait_time++ ))
       done
     }
 
     function process_swarm() {
-      _swarm=$(salt-call --out=text pillar.get docker:swarm:advertise_addr | awk '{print $2}')
+      _swarm=$(salt-call --out=newline_values_only pillar.get docker:swarm:advertise_addr)
       if [[ "${_swarm}" != "" ]]; then
         salt-call ${SALT_OPTS} state.apply docker.swarm
       fi
-      _docker=$(salt-call --out=text pillar.get docker:client:enabled | awk '{print $2}')
-      if [[ "${_docker}" != "" ]]; then
+      _docker_enabled=$(salt-call --out=newline_values_only pillar.get docker:client:enabled | tr "[:upper:]" "[:lower:]")
+      if [[ "${_docker_enabled}" == "true" ]]; then
+        salt-call ${SALT_OPTS} state.apply docker.client.images
         salt-call ${SALT_OPTS} state.apply docker.client
       fi
-      salt-call ${SALT_OPTS} state.apply docker.client.images
     }
 
     function process_jenkins() {
@@ -143,13 +147,8 @@ master_config:
       if [ -f /opt/jenkins_in_docker ]; then
         rm -v /opt/jenkins_in_docker
         export JENKINS_HOME=/srv/volumes/jenkins
-        _nginx=$(salt-call --out=text pillar.get nginx:server:enabled | awk '{print $2}')
-        if [[ "${_nginx}" != "" ]]; then
-          salt-call ${SALT_OPTS} state.apply nginx
-        fi
-        _jenabled=$(salt-call --out=text pillar.get docker:client:stack:jenkins | awk '{print $2}')
-        _jclient=$(salt-call --out=text pillar.get jenkins:client | awk '{print $2}')
-        if [[ "${_jenabled}" != "" && "${_jclient}" != "" ]]; then
+        _jenkins_enabled=$(salt-call --out=newline_values_only pillar.get jenkins:client:enabled | tr "[:upper:]" "[:lower:]")
+        if [[ "${_jenkins_enabled}" == "true" ]]; then
           wait_for_jenkins
           salt-call ${SALT_OPTS} state.apply jenkins.client
         fi
@@ -158,8 +157,8 @@ master_config:
         systemctl enable jenkins
         systemctl start jenkins
         wait_for_jenkins
-        _jjobs=$(salt-call --out=text pillar.get jenkins:client:job | awk '{print $2}')
-        if [[ "${_jjobs}" != "" ]]; then
+        _jenkins_enabled=$(salt-call --out=newline_values_only pillar.get jenkins:client:enabled | tr "[:upper:]" "[:lower:]")
+        if [[ "${_jenkins_enabled}" == "true" ]]; then
           salt-call ${SALT_OPTS} state.apply jenkins.client
         fi
         systemctl stop jenkins
@@ -248,12 +247,38 @@ master_config:
     salt-call ${SALT_OPTS} state.apply linux.system.repo,linux.network,linux.system,linux,openssh
     process_salt_base
 
+    systemctl stop apache2 || true
+    systemctl disable apache2 || true
+    chmod 0 /etc/init.d/apache2
 
-    if [ -f /opt/jenkins_in_docker ] || [ -f /opt/postgresql_in_docker ]; then
-      process_swarm
-    fi
-    if [ -f /opt/jenkins_in_docker ] && [ ! -f /opt/postgresql_in_docker ]; then
-      docker stack rm postgresql || true
+    _kfg_enabled=$(salt-call --out=newline_values_only pillar.get kubernetes:master:enabled | tr "[:upper:]" "[:lower:]")
+    if [ "${_kfg_enabled}" != "true" ]; then
+      if [ -f /opt/jenkins_in_docker ] || [ -f /opt/postgresql_in_docker ]; then
+        process_swarm
+      fi
+      if [ -f /opt/jenkins_in_docker ] && [ ! -f /opt/postgresql_in_docker ]; then
+        docker stack rm postgresql || true
+      fi
+    else
+      systemctl stop docker || true
+      systemctl disable docker || true
+      salt-call ${SALT_OPTS} state.apply etcd.server.service
+      salt-call ${SALT_OPTS} state.apply kubernetes.master.kube-addons
+      _images=$(salt-call --out=newline_values_only pillar.get kubernetes:pool:images)
+      if [ -n "${_images}" ]; then
+        salt-call ${SALT_OPTS} state.apply kubernetes.pool.images
+      fi
+      salt-call ${SALT_OPTS} state.apply kubernetes exclude=kubernetes.master.setup,kubernetes.client
+      salt-call ${SALT_OPTS} state.apply kubernetes.master
+      salt-call ${SALT_OPTS} state.apply nginx.server
+      _ldap_enabled=$(salt-call --out=newline_values_only pillar.get openldap:client:enabled | tr "[:upper:]" "[:lower:]")
+      if [ "${_ldap_enabled}" == "true" ]; then
+        salt-call ${SALT_OPTS} state.apply openldap.client
+      fi
+      _gerrit_enabled=$(salt-call --out=newline_values_only pillar.get gerrit:client:enabled | tr "[:upper:]" "[:lower:]")
+      if [ "${_gerrit_enabled}" == "true" ]; then
+        salt-call ${SALT_OPTS} state.apply gerrit.client
+      fi
     fi
 
     process_jenkins
