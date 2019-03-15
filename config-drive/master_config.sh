@@ -16,6 +16,7 @@ export MCP_SALT_REPO="deb [arch=amd64] $MCP_SALT_REPO_URL $MCP_VERSION salt"
 export FORMULAS="salt-formula-*"
 # Not avaible in 2018.4 and pre.
 export LOCAL_REPOS=false
+export SALT_OPTS=${SALT_OPTS:-"-l debug -t 30 --retcode-passthrough --no-color"}
 #for cloning from aptly image use port 8088
 #export PIPELINE_REPO_URL=http://172.16.47.182:8088
 
@@ -59,6 +60,22 @@ function _post_maas_cfg(){
     # TODO wait for finish,and stop import.
   fi
 }
+
+function process_maas(){
+      maas_cluster_enabled=$(salt-call --out=text pillar.get maas:cluster:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
+      _region=$(salt-call --out=text pillar.get maas:region:enabled | awk '{print $2}' | tr "[:upper:]" "[:lower:]" )
+
+      if [[ "${maas_cluster_enabled}" == "true" ]] || [[ "$_region" == "true" ]]; then
+        salt-call state.sls maas.cluster,maas.region || salt-call state.sls maas.cluster,maas.region
+      else
+        echo "WARNING: maas.cluster skipped!"
+      fi
+      # Do not move it under first cluster-only check!
+      if [[ "${maas_cluster_enabled}" == "true" ]]; then
+        _post_maas_cfg
+      fi
+}
+
 
 ### Body
 echo "Configuring network interfaces"
@@ -128,11 +145,8 @@ fi
 
 salt-call state.sls linux.network,linux,openssh,salt
 salt-call state.sls salt
-# Sometimes, maas can stuck :(
-salt-call state.sls maas.cluster,maas.region || salt-call state.sls maas.cluster,maas.region
 salt-call state.sls reclass
-
-_post_maas_cfg
+process_maas
 
 ssh-keyscan cfg01 > /var/lib/jenkins/.ssh/known_hosts || true
 
