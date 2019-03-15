@@ -67,7 +67,7 @@ function create_host_network {
   <bridge name="${network}" />
   <ip address="${gateway}" netmask="${netmask}"/>
 EOF
-    if [[ ${nat} ]]; then
+    if [[ "${nat}" =~ [Tt]rue ]]; then
         cat <<EOF>> $(pwd)/${network}.xml
   <forward mode="nat"/>
 EOF
@@ -123,7 +123,7 @@ cat <<EOF > $(pwd)/${VM_NAME}-vm.xml
       <address type='drive' controller='0' bus='0' target='0' unit='0'/>
     </disk>
 EOF
-if [[ ! ${VM_MGM_BRIDGE_DISABLE} ]]; then
+if [[ "${VM_MGM_BRIDGE_DISABLE}" =~ [Ff]alse ]]; then
     create_bridge_network "${VM_MGM_NETWORK_NAME}" "${VM_MGM_BRIDGE_NAME}"
     cat <<EOF >> $(pwd)/${VM_NAME}-vm.xml
     <interface type='bridge'>
@@ -143,7 +143,7 @@ else
 EOF
 fi
 
-if [[ ! ${VM_CTL_BRIDGE_DISABLE} ]]; then
+if [[ "${VM_MGM_BRIDGE_DISABLE}" =~ [Ff]alse ]]; then
     create_bridge_network "${VM_CTL_NETWORK_NAME}" "${VM_CTL_BRIDGE_NAME}"
     cat <<EOF >> $(pwd)/${VM_NAME}-vm.xml
     <interface type='bridge'>

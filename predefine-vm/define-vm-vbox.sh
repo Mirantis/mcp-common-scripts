@@ -20,7 +20,7 @@ create_host_net() {
     if [[ $? -ne 0 ]]; then
         vboxmanage hostonlyif create
     else
-        if [[ ! ${AUTO_USER_CONFIRM} ]]; then
+        if [[ "${AUTO_USER_CONFIRM}" =~ [Ff]alse ]]; then
             echo "Hosted-network ${CONTROL_NET_NAME} already exists, shall we override it? Type 'yes' to confirm or anything else to skip."
             read manageControlNet
         fi
@@ -36,12 +36,12 @@ create_nat_net() {
     if [[ $? -ne 0 ]]; then
         vboxmanage natnetwork add --netname "${DEPLOY_NET_NAME}" --network "${DEPLOY_NETWORK}" --enable --dhcp off
     else
-        if [[ ! ${AUTO_USER_CONFIRM} ]]; then
+        if [[ "${AUTO_USER_CONFIRM}" =~ [Ff]alse ]]; then
             echo "Nat network ${DEPLOY_NET_NAME} already exists, shall we override it? Type 'yes' to confirm or anything else to skip."
             read manageDeployNet
         fi
         if [[ "${manageDeployNet}" == 'yes' ]]; then
-            vboxmanage natnetwork modify --netname "${DEPLOY_NET_NAME}" --network "${natNetwork}/${natCIDR}" --enable --dhcp off
+            vboxmanage natnetwork modify --netname "${DEPLOY_NET_NAME}" --network "${DEPLOY_NETWORK}" --enable --dhcp off
         fi
     fi
 }
@@ -70,7 +70,7 @@ update_iso() {
     if [[ -d "${openstackConfig}" ]]; then
         local networkConfigOpenstack="${openstackConfig}/network_data.json"
         local ens="[{'ethernet_mac_address': '${mac1}', 'type': 'phy', 'id': 'ens3', 'name': 'ens3'}, {'ethernet_mac_address': '${mac2}', 'type': 'phy', 'id': 'ens4', 'name': 'ens4'}]"
-        python -c "import json; networkData=json.load(open('${networkConfigOpenstack}', 'r')); networkData['links']=${ens4}; json.dump(networkData, open('${networkConfigOpenstack}', 'w'))"
+        python -c "import json; networkData=json.load(open('${networkConfigOpenstack}', 'r')); networkData['links']=${ens}; json.dump(networkData, open('${networkConfigOpenstack}', 'w'))"
         iso_label='config-2'
     else
         local networkConfigV2Template="""
@@ -125,7 +125,7 @@ define_vm() {
     macaddress1=$(vboxmanage showvminfo "${VM_NAME}" --details --machinereadable | grep macaddress1 | cut -f 2 -d '=' | tr -d '"' | sed 's/../&:/g; s/:$//')
     macaddress2=$(vboxmanage showvminfo "${VM_NAME}" --details --machinereadable | grep macaddress2 | cut -f 2 -d '=' | tr -d '"' | sed 's/../&:/g; s/:$//')
 
-    [[ ${UPDATE_ISO_INTERFACES} ]] && update_iso ${macaddress1} ${macaddress2}
+    [[ "${UPDATE_ISO_INTERFACES}" =~ [Tt]rue ]] && update_iso ${macaddress1} ${macaddress2}
 
     vboxmanage storageattach "${VM_NAME}" \
         --storagectl "IDE" --port 0 --device 0 \
