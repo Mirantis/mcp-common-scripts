@@ -9,10 +9,10 @@ export http_proxy=
 export https_proxy=
 export PIPELINES_FROM_ISO=true
 export PIPELINE_REPO_URL=https://github.com/Mirantis
-export MCP_VERSION=stable
-export MCP_SALT_REPO_KEY=http://apt.mirantis.com/public.gpg
-export MCP_SALT_REPO_URL=http://apt.mirantis.com/xenial
-export MCP_SALT_REPO="deb [arch=amd64] $MCP_SALT_REPO_URL $MCP_VERSION salt"
+export MCP_VERSION=2018.4.0
+export MCP_SALT_REPO_KEY=http://mirror.mirantis.com/${MCP_VERSION}/salt-formulas/xenial/archive-salt-formulas.key
+export MCP_SALT_REPO_URL=http://mirror.mirantis.com/${MCP_VERSION}/salt-formulas/xenial/
+export MCP_SALT_REPO="deb [arch=amd64] $MCP_SALT_REPO_URL xenial main"
 export FORMULAS="salt-formula-*"
 # Not avaible in 2018.4 and pre.
 export LOCAL_REPOS=false
