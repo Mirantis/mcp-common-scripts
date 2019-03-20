@@ -154,7 +154,7 @@ def create_config_drive(args):
         if username:
             with open(user_file_path, 'a') as user_file:
                 users_data = "#cloud-config\n"
-                users_data = "users:\n"
+                users_data += "users:\n"
                 users_data += "  - name: %s\n" % username
                 users_data += "    sudo: ALL=(ALL) NOPASSWD:ALL\n"
                 users_data += "    groups: admin\n"
