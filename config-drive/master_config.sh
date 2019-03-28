@@ -13,6 +13,7 @@ export MCP_VERSION=2018.4.0
 export MCP_SALT_REPO_KEY=http://mirror.mirantis.com/${MCP_VERSION}/salt-formulas/xenial/archive-salt-formulas.key
 export MCP_SALT_REPO_URL=http://mirror.mirantis.com/${MCP_VERSION}/salt-formulas/xenial/
 export MCP_SALT_REPO="deb [arch=amd64] $MCP_SALT_REPO_URL xenial main"
+export MCP_SALT_REPO_UPDATES=${MCP_SALT_REPO_UPDATES:-"deb [arch=amd64] http://mirror.mirantis.com/update/$MCP_VERSION/salt-formulas/xenial xenial main"}
 export FORMULAS="salt-formula-*"
 # Not avaible in 2018.4 and pre.
 export LOCAL_REPOS=false
@@ -130,7 +131,8 @@ fi
 echo "installing formulas"
 _apt_cfg
 curl -s $MCP_SALT_REPO_KEY | sudo apt-key add -
-echo $MCP_SALT_REPO > /etc/apt/sources.list.d/mcp_salt.list
+echo "${MCP_SALT_REPO}" > /etc/apt/sources.list.d/mcp_salt.list
+echo "${MCP_SALT_REPO_UPDATES}" >> /etc/apt/sources.list.d/mcp_salt.list
 apt-get update
 apt-get install -y $FORMULAS
 rm -rf /srv/salt/reclass/classes/service/*
