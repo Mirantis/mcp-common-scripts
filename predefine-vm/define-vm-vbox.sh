@@ -44,6 +44,7 @@ create_nat_net() {
             vboxmanage natnetwork modify --netname "${DEPLOY_NET_NAME}" --network "${DEPLOY_NETWORK}" --enable --dhcp off
         fi
     fi
+    vboxmanage natnetwork start --netname "${DEPLOY_NET_NAME}"
 }
 
 update_iso() {
@@ -105,6 +106,10 @@ ethernets:
 }
 
 define_vm() {
+    VBOX_CONFIG_FILE="${HOME}/VirtualBox VMs/${VM_NAME}/${VM_NAME}.vbox"
+    if test -f "${VBOX_CONFIG_FILE}"; then
+        rm -v "${VBOX_CONFIG_FILE}"
+    fi
     vboxmanage createvm --name "${VM_NAME}" --register
     vboxmanage modifyvm "${VM_NAME}" --ostype Ubuntu_64 \
         --memory 8188 --cpus 2 --vram 16 \
@@ -130,6 +135,7 @@ define_vm() {
     vboxmanage storageattach "${VM_NAME}" \
         --storagectl "IDE" --port 0 --device 0 \
         --type dvddrive --medium "${CONFIG_DRIVE_ISO}"
+
 }
 
 [ -f env_overrides ] && source env_overrides
@@ -183,4 +189,8 @@ create_nat_net
 create_host_net
 define_vm
 vboxmanage startvm "${VM_NAME}" --type headless
+
+vboxmanage controlvm "${VM_NAME}" nic1 null
+vboxmanage controlvm "${VM_NAME}" nic1 natnetwork "${DEPLOY_NET_NAME}"
+
 echo "VM successfully started, check the VM console"
