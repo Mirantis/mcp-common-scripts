@@ -18,7 +18,8 @@ Script is operating by next ENV variables:
 
     * VM_NAME - the name of VM to be created in VirtualBox. Default: 'cfg01-mcp.local'.
     * VM_SOURCE_DISK - the name of virtual disk to be used for virtual machine. Can be relative or absolute path.
-    * VM_CONFIG_DISK - same as VM_SOURCE_DISK, but for config-drive ISO file.
+      You can download and use the following image: http://images.mcp.mirantis.net/cfg01-day01-2019.2.0.qcow2
+    * VM_CONFIG_DISK - Config-drive ISO file, can be relative or absolute path.
     * VM_MGM_BRIDGE_NAME - Bridge name to use for deploy management network. Should have Internet access if not
       offline case. Optional, default: 'br-mgm'
     * VM_CTL_BRIDGE_NAME - Bridge name to use for control network. Optional, default: 'br-ctl'
@@ -42,6 +43,53 @@ Once VM is up and running you can use ``virsh console`` to check what is going o
 It is recommended to specify username and password during model generation for login via VM console if
 something goes wrong. Once you are logged in you can follow usual debug procedure for cfg01 node.
 
+Deploy OpenStack All-In-One node on Ubuntu with QEMU/KVM (libvirt)
+==================================================================
+
+**Prerequisites**
+
+Setup cfg01 node and it's up, running and configured.
+
+**Common info**
+
+Script define-slave-vm.sh gives you an ability to deploy OpenStack All-in-one VM with provided Qcwo2 disk
+image and config-drive iso file on your local laptop.
+
+Script is operating by next ENV variables:
+
+    * SLAVE_VM_NAME - the name of VM to be created in VirtualBox.
+    * SLAVE_VM_SOURCE_DISK - the name of virtual disk to be used for virtual machine. Can be relative or absolute path.
+      You can download and use the following image: http://images.mcp.mirantis.net/ubuntu-16-04-x64-mcp2019.2.0.qcow2
+    * SLAVE_VM_MEM_KB - amount of RAM for VM in KB. Default is: 16777216
+    * SLAVE_VM_CPUS - amount of CPUs to use. Default is: 4.
+
+Next parameters should be same as for cfg01 node:
+
+    * VM_CONFIG_DISK
+    * VM_MGM_BRIDGE_NAME
+    * VM_CTL_BRIDGE_NAME
+    * VM_MGM_BRIDGE_DISABLE
+    * VM_CTL_BRIDGE_DISABLE
+    * VM_MGM_NETWORK_NAME
+    * VM_CTL_NETWORK_NAME
+    * VM_MGM_NETWORK_GATEWAY
+    * VM_MGM_NETWORK_MASK
+    * VM_CTL_NETWORK_GATEWAY
+    * VM_CTL_NETWORK_MASK
+
+Also once you setup cfg01 setup the next parameter: export CREATE_NEWORKS=false
+This parameter will disable network recreation, which can be needed in case of changing network setup.
+
+Also if you are not going to use system bridges, set next parameters to true:
+
+    * VM_MGM_BRIDGE_DISABLE=true
+    * VM_CTL_BRIDGE_DISABLE=true
+
+This will switch using to locally created virsh networks.
+
+Script will check that disk and cfg01 config-drive are present and then prepare config-drive for all-in-one node.
+Once VM is up and running you can use ``virsh console`` to check what is going on during deploy. For that VM will be used
+same fail safe user as for cfg01.
 
 Deploy cfg01 on Mac OS with VirtualBox
 ======================================
