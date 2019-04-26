@@ -94,7 +94,10 @@ runcmd:
   - [bash, -cex, *slave_boot]
 EOF
 
-isoArgs="--name ${aioHostname} --hostname ${aioHostname}.${clusterDomain} --user-data $(pwd)/user_data --network-data $(pwd)/${networkDataFileBaseName} --cloud-user-name ${aioFailSafeUser} --ssh-key ${aioFailSafeUserKey} --quiet --clean-up"
+isoArgs="--name ${aioHostname} --hostname ${aioHostname}.${clusterDomain} --user-data $(pwd)/user_data --network-data $(pwd)/${networkDataFileBaseName} --quiet --clean-up"
+if [[ -n "${aioFailSafeUser}" ]] && [[ -n "${aioFailSafeUserKey}" ]]; then
+	isoArgs="${isoArgs} --cloud-user-name ${aioFailSafeUser} --ssh-key ${aioFailSafeUserKey}"
+fi
 python ./create_config_drive.py ${isoArgs}
 qemu-img resize ${SLAVE_VM_SOURCE_DISK} 80G
 #### Make sure that both files are saved to system path which is available for libvirt-qemu:kvm
