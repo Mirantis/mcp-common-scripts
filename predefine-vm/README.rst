@@ -11,7 +11,7 @@ Script will check and install next required packages: qemu-utils libvirt-bin vir
 
 **Common info**
 
-Script gives you an ability to deploy cfg01 VM with provided cfg01 Qcwo2 disk
+Script ``define-vm.sh`` gives you an ability to deploy cfg01 VM with provided cfg01 Qcwo2 disk
 image and config-drive iso file on your local laptop.
 
 Script is operating by next ENV variables:
@@ -37,11 +37,14 @@ Script is operating by next ENV variables:
     * VM_CTL_NETWORK_MASK - Network mask for control network. Optional, default: '255.255.255.0'
 
 Script will check that disk and config-drive are present and then define needed networks and spawn virtual machine.
-Then check that VM is up and running.
+Start VM with ``virsh start <VM_NAME>``. Then check that VM is up and running.
 
 Once VM is up and running you can use ``virsh console`` to check what is going on during deploy.
-It is recommended to specify username and password during model generation for login via VM console if
+It is recommended to specify username and password/ssh-key during model generation for login via VM console or ssh if
 something goes wrong. Once you are logged in you can follow usual debug procedure for cfg01 node.
+
+When cfg01 is bootstrapped and configured, Jenkins is available via: http://<salt_master_management_address>:8081/
+Default login creds are: root/r00tme
 
 Deploy OpenStack All-In-One node on Ubuntu with QEMU/KVM (libvirt)
 ==================================================================
@@ -52,7 +55,7 @@ Setup cfg01 node and it's up, running and configured.
 
 **Common info**
 
-Script define-slave-vm.sh gives you an ability to deploy OpenStack All-in-one VM with provided Qcwo2 disk
+Script ``define-slave-vm.sh`` gives you an ability to deploy OpenStack All-in-one VM with provided Qcwo2 disk
 image and config-drive iso file on your local laptop.
 
 Script is operating by next ENV variables:
@@ -88,8 +91,8 @@ Also if you are not going to use system bridges, set next parameters to true:
 This will switch using to locally created virsh networks.
 
 Script will check that disk and cfg01 config-drive are present and then prepare config-drive for all-in-one node.
-Once VM is up and running you can use ``virsh console`` to check what is going on during deploy. For that VM will be used
-same fail safe user as for cfg01.
+Start VM with ``virsh start <SLAVE_VM_NAME>``. Once VM is up and running you can use ``virsh console`` to check what is
+going on during bootstrap. For that VM will be used same fail safe user as specified for cfg01.
 
 Deploy cfg01 on Mac OS with VirtualBox
 ======================================
