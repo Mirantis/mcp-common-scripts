@@ -260,8 +260,6 @@ master_config:
         docker stack rm postgresql || true
       fi
     else
-      systemctl stop docker || true
-      systemctl disable docker || true
       salt-call ${SALT_OPTS} state.apply etcd.server.service
       salt-call ${SALT_OPTS} state.apply kubernetes.master.kube-addons
       _images=$(salt-call --out=newline_values_only pillar.get kubernetes:pool:images)
