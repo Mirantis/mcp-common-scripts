@@ -12,7 +12,7 @@ function check_packages {
     local slave=$1
     local packages="libvirt-bin qemu-kvm"
     if [[ -n "${slave}" ]]; then
-       packages="${packages} qemu-utils python-ipaddress mkisofs"
+       packages="${packages} qemu-utils python-ipaddress genisoimage"
     fi
     for i in $packages; do
        dpkg -s $i &> /dev/null || { echo "Package $i is not installed!"; exit 1; }
