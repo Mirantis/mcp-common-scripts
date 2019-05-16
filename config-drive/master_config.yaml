@@ -21,6 +21,8 @@ write_files:
 
       export MCP_SALT_REPO_URL=${MCP_SALT_REPO_URL:-"http://mirror.mirantis.com/"}
       export MCP_SALT_REPO=${MCP_SALT_REPO:-"deb [arch=amd64] $MCP_SALT_REPO_URL/$MCP_VERSION/salt-formulas/xenial xenial main"}
+
+      export ENABLE_MCP_SALT_REPO_UPDATES=${ENABLE_MCP_SALT_REPO_UPDATES:-"true"}
       export MCP_SALT_REPO_UPDATES=${MCP_SALT_REPO_UPDATES:-"deb [arch=amd64] $MCP_SALT_REPO_URL/update/$MCP_VERSION/salt-formulas/xenial xenial main"}
       export MCP_SALT_REPO_KEY=${MCP_SALT_REPO_KEY:-"${MCP_SALT_REPO_URL}/${MCP_VERSION}/salt-formulas/xenial/archive-salt-formulas.key"}
 
@@ -51,7 +53,9 @@ master_config:
 
       curl -s ${MCP_SALT_REPO_KEY} | apt-key add -
       echo "${MCP_SALT_REPO}" > /etc/apt/sources.list.d/mcp_salt.list
-      echo "${MCP_SALT_REPO_UPDATES}" >> /etc/apt/sources.list.d/mcp_salt.list
+      if [[ "${ENABLE_MCP_SALT_REPO_UPDATES}" == "true" ]] ; then
+        echo "${MCP_SALT_REPO_UPDATES}" >> /etc/apt/sources.list.d/mcp_salt.list
+      fi
       apt update && apt install -y "${FORMULAS}"
 
       [ ! -d ${RECLASS_ROOT}/classes/service ] && mkdir -p ${RECLASS_ROOT}/classes/service
