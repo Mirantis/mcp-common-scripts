@@ -31,6 +31,7 @@ write_files:
 master_config:
   - &master_config |
     function _post_maas_cfg() {
+      sed -i 's/API_SERVER=.*/API_SERVER=localhost:5240/g' /var/lib/maas/.maas_login.sh
       source /var/lib/maas/.maas_login.sh
       # disable backports for maas enlist pkg repo. Those operation enforce maas
       # to re-create sources.list and drop [source] fetch-definition from it.
