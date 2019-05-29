@@ -279,6 +279,10 @@ master_config:
 
     _kfg_enabled=$(salt-call --out=newline_values_only pillar.get kubernetes:master:enabled | tr "[:upper:]" "[:lower:]")
     if [ "${_kfg_enabled}" != "true" ]; then
+      _nginx_enabled=$(salt-call --out=newline_values_only pillar.get nginx:server:enabled | tr "[:upper:]" "[:lower:]")
+      if [[ "${_nginx_enabled}" == "true" ]]; then
+        salt-call ${SALT_OPTS} state.apply nginx.server
+      fi
       if [ -f /opt/jenkins_in_docker ] || [ -f /opt/postgresql_in_docker ]; then
         process_swarm
       fi
