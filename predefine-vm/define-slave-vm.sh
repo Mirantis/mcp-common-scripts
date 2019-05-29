@@ -100,9 +100,11 @@ if [[ -n "${aioFailSafeUser}" ]] && [[ -n "${aioFailSafeUserKey}" ]]; then
 fi
 python ./create_config_drive.py ${isoArgs}
 qemu-img resize ${SLAVE_VM_SOURCE_DISK} 80G
-#### Make sure that both files are saved to system path which is available for libvirt-qemu:kvm
-export SLAVE_VM_SOURCE_DISK=$(place_file_under_libvirt ${SLAVE_VM_SOURCE_DISK})
-export SLAVE_VM_CONFIG_DISK=$(place_file_under_libvirt ${aioHostname}.${clusterDomain}-config.iso)
+if [ -z "${NON_DEFAULT_LIBVIRT_DIR}" ]; then
+  #### Make sure that both files are saved to system path which is available for libvirt-qemu:kvm
+  export SLAVE_VM_SOURCE_DISK=$(place_file_under_libvirt ${SLAVE_VM_SOURCE_DISK})
+  export SLAVE_VM_CONFIG_DISK=$(place_file_under_libvirt ${aioHostname}.${clusterDomain}-config.iso)
+fi
 export CREATE_NETWORKS=${CREATE_NETWORKS:-true}
 popd
 
