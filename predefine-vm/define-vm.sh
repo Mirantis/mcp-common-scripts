@@ -22,15 +22,13 @@ if [[ -z ${VM_CONFIG_DISK} ]] || [[ ! -f ${VM_CONFIG_DISK} ]]; then
   exit 1
 fi
 
-check_packages
+prereq_check
 
-if [ -z "${NON_DEFAULT_LIBVIRT_DIR}" ]; then
-  #### Make sure that both files are saved to system path which is available for libvirt-qemu:kvm
-  export VM_SOURCE_DISK=$(place_file_under_libvirt ${VM_SOURCE_DISK})
-  export VM_CONFIG_DISK=$(place_file_under_libvirt ${VM_CONFIG_DISK})
-fi
-export CREATE_NETWORKS=${CREATE_NETWORKS:-true}
-render_config "${VM_NAME}" "${VM_MEM_KB}" "${VM_CPUS}" "${VM_SOURCE_DISK}" "${VM_CONFIG_DISK}" "${CREATE_NETWORKS}"
+#### Make sure that both files are saved to system path which is available for libvirt-qemu:kvm
+export VM_SOURCE_DISK=$(place_file_under_libvirt_owned_dir ${VM_SOURCE_DISK} ${NON_DEFAULT_LIBVIRT_DIR})
+export VM_CONFIG_DISK=$(place_file_under_libvirt_owned_dir ${VM_CONFIG_DISK} ${NON_DEFAULT_LIBVIRT_DIR})
+
+render_config "${VM_NAME}" "${VM_MEM_KB}" "${VM_CPUS}" "${VM_SOURCE_DISK}" "${VM_CONFIG_DISK}"
 
 virsh define $(pwd)/${VM_NAME}-vm.xml
 virsh autostart ${VM_NAME}

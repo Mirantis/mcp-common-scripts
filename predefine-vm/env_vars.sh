@@ -4,6 +4,7 @@ export VM_MGM_BRIDGE_NAME=${VM_MGM_BRIDGE_NAME:-"br-mgm"}
 export VM_CTL_BRIDGE_NAME=${VM_CTL_BRIDGE_NAME:-"br-ctl"}
 export VM_MGM_NETWORK_NAME=${VM_MGM_NETWORK_NAME:-"mgm_network"}
 export VM_CTL_NETWORK_NAME=${VM_CTL_NETWORK_NAME:-"ctl_network"}
+export RECREATE_NETWORKS_IF_EXISTS=${RECREATE_NETWORKS_IF_EXISTS:-false}
 export VM_MEM_KB=${VM_MEM_KB:-"12589056"}
 export VM_CPUS=${VM_CPUS:-"4"}
 # optional params if you won't use bridge on host

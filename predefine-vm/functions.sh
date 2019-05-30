@@ -19,6 +19,36 @@ function check_packages {
     done
 }
 
+function check_bridge_exists {
+    local bridgeName=${1}
+    local optionName=${2}
+    local bridgeExists=$(brctl show | grep ${bridgeName})
+    if [ -z "${bridgeExists}" ]; then
+        echo "Option ${optionName} is set to False, which means using bridge ${bridgeName}, but it doesn't exist."
+        echo "Consider to switch to ${optionName}=True, which will lead to using local hosted networks."
+        echo "Or create bridge ${bridgeName} manually: https://docs.mirantis.com/mcp/q4-18/mcp-deployment-guide/deploy-mcp-drivetrain/prerequisites-dtrain.html"
+        exit 1
+    fi
+}
+
+function prereq_check {
+    local slave=${1}
+    check_packages "${slave}"
+    [[ "${VM_MGM_BRIDGE_DISABLE}" =~ [Ff]alse ]] && check_bridge_exists "${VM_MGM_BRIDGE_NAME}" "VM_MGM_BRIDGE_DISABLE"
+    [[ "${VM_CTL_BRIDGE_DISABLE}" =~ [Ff]alse ]] && check_bridge_exists "${VM_CTL_BRIDGE_NAME}" "VM_CTL_BRIDGE_DISABLE"
+    [[ -n "${NON_DEFAULT_LIBVIRT_DIR}" ]] && echo "All files will be saved under ${NON_DEFAULT_LIBVIRT_DIR} directory. Make sure that libvirt-qemu:kvm has access rights to that path."
+}
+
+function do_create_new_network {
+    local netName=${1}
+    local netExists=$(virsh net-list | grep ${netName})
+    if [ -n "${netExists}" ] && [[ "${RECREATE_NETWORKS_IF_EXISTS}" =~ [Ff]alse ]]; then
+        echo 'false'
+    else
+        echo 'true'
+    fi
+}
+
 function create_network {
     local network=${1}
     virsh net-destroy ${network} 2> /dev/null || true
@@ -31,14 +61,17 @@ function create_network {
 function create_bridge_network {
     local network=$1
     local bridge_name=$2
-    cat <<EOF > $(pwd)/${network}.xml
+    local createNetwork=$(do_create_new_network "${network}")
+    if [ "${createNetwork}" == 'true' ]; then
+        cat <<EOF > $(pwd)/${network}.xml
 <network>
   <name>${network}</name>
   <forward mode="bridge"/>
   <bridge name="${bridge_name}" />
 </network>
 EOF
-    create_network ${network}
+        create_network ${network}
+    fi
 }
 
 function create_host_network {
@@ -46,29 +79,32 @@ function create_host_network {
     local gateway=$2
     local netmask=$3
     local nat=${4:-false}
-    cat <<EOF > $(pwd)/${network}.xml
+    local createNetwork=$(do_create_new_network "${network}")
+    if [ "${createNetwork}" == 'true' ]; then
+        cat <<EOF > $(pwd)/${network}.xml
 <network>
   <name>${network}</name>
   <bridge name="${network}" />
   <ip address="${gateway}" netmask="${netmask}"/>
 EOF
-    if [[ "${nat}" =~ [Tt]rue ]]; then
-        cat <<EOF>> $(pwd)/${network}.xml
+        if [[ "${nat}" =~ [Tt]rue ]]; then
+            cat <<EOF>> $(pwd)/${network}.xml
   <forward mode="nat"/>
 EOF
-    fi
-    cat <<EOF>> $(pwd)/${network}.xml
+        fi
+        cat <<EOF>> $(pwd)/${network}.xml
 </network>
 EOF
-    create_network ${network}
+        create_network ${network}
+    fi
 }
 
-function place_file_under_libvirt() {
-  local libvirtPath="/var/lib/libvirt/images"
-  local image=${1}
-  local basenameFile=$(basename ${image})
-  cp "${image}" "${libvirtPath}/${basenameFile}"
-  chown -R libvirt-qemu:kvm "${libvirtPath}"
+function place_file_under_libvirt_owned_dir() {
+  local file=${1}
+  local libvirtPath=${2-'/var/lib/libvirt/images'}
+  local basenameFile=$(basename ${file})
+  cp "${file}" "${libvirtPath}/${basenameFile}"
+  chown libvirt-qemu:kvm "${libvirtPath}/${basenameFile}"
   echo "${libvirtPath}/${basenameFile}"
 }
 
@@ -78,7 +114,6 @@ function render_config() {
   local vmCPUs=$3
   local vmSourceDisk=$4
   local vmConfigDisk=$5
-  local createNetworks=${6:-true}
   # Template definition
   cat <<EOF > $(pwd)/${vmName}-vm.xml
 <domain type='kvm'>
@@ -128,7 +163,7 @@ EOF
   fi
 
   if [[ "${VM_MGM_BRIDGE_DISABLE}" =~ [Ff]alse ]]; then
-      [[ "${createNetworks}" =~ [Tt]rue ]] && create_bridge_network "${VM_MGM_NETWORK_NAME}" "${VM_MGM_BRIDGE_NAME}"
+      create_bridge_network "${VM_MGM_NETWORK_NAME}" "${VM_MGM_BRIDGE_NAME}"
       cat <<EOF >> $(pwd)/${vmName}-vm.xml
     <interface type='bridge'>
       <source bridge='$VM_MGM_BRIDGE_NAME'/>
@@ -137,7 +172,7 @@ EOF
     </interface>
 EOF
   else
-      [[ "${createNetworks}" =~ [Tt]rue ]] && create_host_network "${VM_MGM_NETWORK_NAME}" "${VM_MGM_NETWORK_GATEWAY}" "${VM_MGM_NETWORK_MASK}" true
+      create_host_network "${VM_MGM_NETWORK_NAME}" "${VM_MGM_NETWORK_GATEWAY}" "${VM_MGM_NETWORK_MASK}" true
       cat <<EOF >> $(pwd)/${vmName}-vm.xml
     <interface type='network'>
       <source network='$VM_MGM_NETWORK_NAME'/>
@@ -148,7 +183,7 @@ EOF
 fi
 
   if [[ "${VM_MGM_BRIDGE_DISABLE}" =~ [Ff]alse ]]; then
-      [[ "${createNetworks}" =~ [Tt]rue ]] && create_bridge_network "${VM_CTL_NETWORK_NAME}" "${VM_CTL_BRIDGE_NAME}"
+      create_bridge_network "${VM_CTL_NETWORK_NAME}" "${VM_CTL_BRIDGE_NAME}"
       cat <<EOF >> $(pwd)/${vmName}-vm.xml
     <interface type='bridge'>
       <source bridge='$VM_CTL_BRIDGE_NAME'/>
@@ -157,7 +192,7 @@ fi
     </interface>
 EOF
   else
-      [[ "${createNetworks}" =~ [Tt]rue ]] && create_host_network "${VM_CTL_NETWORK_NAME}" "${VM_CTL_NETWORK_GATEWAY}" "${VM_CTL_NETWORK_MASK}"
+      create_host_network "${VM_CTL_NETWORK_NAME}" "${VM_CTL_NETWORK_GATEWAY}" "${VM_CTL_NETWORK_MASK}"
       cat <<EOF >> $(pwd)/${vmName}-vm.xml
     <interface type='network'>
       <source network='$VM_CTL_NETWORK_NAME'/>
