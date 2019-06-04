@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 envFile="$(pwd)/env_vars.sh"
 if [[ ! -f ${envFile} ]]; then
   echo "ERROR: Can not find 'env_vars' libfile (${envFile}), check your mcp/mcp-common-scripts repo."
@@ -162,6 +164,7 @@ EOF
 EOF
   fi
 
+  local allocationDataFile=$(isoinfo -i ${VM_CONFIG_DISK} -J -f | grep -w "allocation_data.yml")
   if [[ "${VM_MGM_BRIDGE_DISABLE}" =~ [Ff]alse ]]; then
       create_bridge_network "${VM_MGM_NETWORK_NAME}" "${VM_MGM_BRIDGE_NAME}"
       cat <<EOF >> $(pwd)/${vmName}-vm.xml
@@ -172,7 +175,9 @@ EOF
     </interface>
 EOF
   else
-      create_host_network "${VM_MGM_NETWORK_NAME}" "${VM_MGM_NETWORK_GATEWAY}" "${VM_MGM_NETWORK_MASK}" true
+      local vmMgmNetworkGateway=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${allocationDataFile} | grep -w 'deploy_network_gateway' | cut -f 2 -d ':' | tr -d ' ')
+      local vmMgmNetworkMask=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${allocationDataFile} | grep -w 'deploy_network_netmask' | cut -f 2 -d ':' | tr -d ' ')
+      create_host_network "${VM_MGM_NETWORK_NAME}" "${vmMgmNetworkGateway}" "${vmMgmNetworkMask}" true
       cat <<EOF >> $(pwd)/${vmName}-vm.xml
     <interface type='network'>
       <source network='$VM_MGM_NETWORK_NAME'/>
@@ -192,7 +197,9 @@ fi
     </interface>
 EOF
   else
-      create_host_network "${VM_CTL_NETWORK_NAME}" "${VM_CTL_NETWORK_GATEWAY}" "${VM_CTL_NETWORK_MASK}"
+      local vmCtlNetworkGateway=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${allocationDataFile} | grep -w 'infra_config_address' | cut -f 2 -d ':' | tr -d ' ' | sed -r "s/\.[[:digit:]]+$/\.1/g")
+      local vmCtlNetworkMask=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${allocationDataFile} | grep -w 'control_network_netmask' | cut -f 2 -d ':' | tr -d ' ')
+      create_host_network "${VM_CTL_NETWORK_NAME}" "${vmCtlNetworkGateway}" "${vmCtlNetworkMask}"
       cat <<EOF >> $(pwd)/${vmName}-vm.xml
     <interface type='network'>
       <source network='$VM_CTL_NETWORK_NAME'/>

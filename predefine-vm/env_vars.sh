@@ -7,11 +7,6 @@ export VM_CTL_NETWORK_NAME=${VM_CTL_NETWORK_NAME:-"ctl_network"}
 export RECREATE_NETWORKS_IF_EXISTS=${RECREATE_NETWORKS_IF_EXISTS:-false}
 export VM_MEM_KB=${VM_MEM_KB:-"12589056"}
 export VM_CPUS=${VM_CPUS:-"4"}
-# optional params if you won't use bridge on host
-export VM_MGM_NETWORK_GATEWAY=${VM_MGM_NETWORK_GATEWAY:-"192.168.56.1"}
-export VM_MGM_NETWORK_MASK=${VM_MGM_NETWORK_MASK:-"255.255.255.0"}
-export VM_CTL_NETWORK_GATEWAY=${VM_CTL_NETWORK_GATEWAY:-"192.168.57.1"}
-export VM_CTL_NETWORK_MASK=${VM_CTL_NETWORK_MASK:-"255.255.255.0"}
 # optional params if you want enable slave vm
 export SLAVE_VM_MEM_KB=${SLAVE_VM_MEM_KB:-"16777216"}
 export SLAVE_VM_CPUS=${SLAVE_VM_CPUS:-"4"}

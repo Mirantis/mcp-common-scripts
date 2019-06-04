@@ -1,4 +1,6 @@
-#!/bin/bash -xe
+#!/bin/bash
+
+set -e
 
 functionsFile="$(pwd)/functions.sh"
 

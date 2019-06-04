@@ -29,12 +29,6 @@ Script is operating by next ENV variables:
       Optional, default: false
     * VM_MGM_NETWORK_NAME - Name for deploy management network. Optional, default: 'mgm_network'
     * VM_CTL_NETWORK_NAME - Name for control network. Optional, default: 'ctl_network'
-    * VM_MGM_NETWORK_GATEWAY - NAT-Service network gateway for deploy management network.
-      Optional, default: '192.168.15.1'
-    * VM_MGM_NETWORK_MASK - Network mask for deploy management network. Optional, default: '255.255.255.0'
-    * VM_CTL_NETWORK_GATEWAY - Host-only based network gateway for control network.
-      Optional, default: '192.168.56.1'
-    * VM_CTL_NETWORK_MASK - Network mask for control network. Optional, default: '255.255.255.0'
 
 Script will check that disk and config-drive are present and then define needed networks and spawn virtual machine.
 Start VM with ``virsh start <VM_NAME>``. Then check that VM is up and running.
@@ -75,10 +69,6 @@ Next parameters should be same as for cfg01 node:
     * VM_CTL_BRIDGE_DISABLE
     * VM_MGM_NETWORK_NAME
     * VM_CTL_NETWORK_NAME
-    * VM_MGM_NETWORK_GATEWAY
-    * VM_MGM_NETWORK_MASK
-    * VM_CTL_NETWORK_GATEWAY
-    * VM_CTL_NETWORK_MASK
 
 Also once you setup cfg01 setup the next parameter: export CREATE_NEWORKS=false
 This parameter will disable network recreation, which can be needed in case of changing network setup.
