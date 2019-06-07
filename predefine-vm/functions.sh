@@ -36,9 +36,15 @@ function check_bridge_exists {
 function prereq_check {
     local slave=${1}
     check_packages "${slave}"
-    [[ "${VM_MGM_BRIDGE_DISABLE}" =~ [Ff]alse ]] && check_bridge_exists "${VM_MGM_BRIDGE_NAME}" "VM_MGM_BRIDGE_DISABLE"
-    [[ "${VM_CTL_BRIDGE_DISABLE}" =~ [Ff]alse ]] && check_bridge_exists "${VM_CTL_BRIDGE_NAME}" "VM_CTL_BRIDGE_DISABLE"
-    [[ -n "${NON_DEFAULT_LIBVIRT_DIR}" ]] && echo "All files will be saved under ${NON_DEFAULT_LIBVIRT_DIR} directory. Make sure that libvirt-qemu:kvm has access rights to that path."
+    if [[ "${VM_MGM_BRIDGE_DISABLE}" =~ [Ff]alse ]]; then
+      check_bridge_exists "${VM_MGM_BRIDGE_NAME}" "VM_MGM_BRIDGE_DISABLE"
+    fi
+    if [[ "${VM_CTL_BRIDGE_DISABLE}" =~ [Ff]alse ]]; then
+      check_bridge_exists "${VM_CTL_BRIDGE_NAME}" "VM_CTL_BRIDGE_DISABLE"
+    fi
+    if [[ -n "${NON_DEFAULT_LIBVIRT_DIR}" ]]; then
+      echo "All files will be saved under ${NON_DEFAULT_LIBVIRT_DIR} directory. Make sure that libvirt-qemu:kvm has access rights to that path."
+    fi
 }
 
 function do_create_new_network {
