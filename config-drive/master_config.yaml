@@ -32,6 +32,7 @@ write_files:
       export FORMULAS=${FORMULAS:-"salt-formula-*"}
       export SALT_OPTS=${SALT_OPTS:-"-l debug -t 30 --retcode-passthrough --no-color"}
       export CFG_BOOTSTRAP_DRIVE_URL=${CFG_BOOTSTRAP_DRIVE_URL:-""}
+      export WGET_OPTS=${WGET_OPTS:-"--progress=dot:mega --waitretry=15 --retry-connrefused"}
 
 master_config:
   - &master_config |
@@ -52,8 +53,11 @@ master_config:
     function process_formulas(){
       local RECLASS_ROOT=${RECLASS_ROOT:-/srv/salt/reclass/}
       local FORMULAS_PATH=${FORMULAS_PATH:-/usr/share/salt-formulas}
+      local _tname="/tmp/archive-salt-formulas_${RANDOM}.key"
 
-      curl -s ${MCP_SALT_REPO_KEY} | apt-key add -
+      wget ${WGET_OPTS} -O ${_tname} ${MCP_SALT_REPO_KEY}
+      apt-key add ${_tname}
+
       echo "${MCP_SALT_REPO}" > /etc/apt/sources.list.d/mcp_salt.list
       if [[ "${ENABLE_MCP_SALT_REPO_UPDATES}" == "true" ]] ; then
         echo "${MCP_SALT_REPO_UPDATES}" >> /etc/apt/sources.list.d/mcp_salt.list
@@ -248,9 +252,8 @@ master_config:
     if [[ -n "${CFG_BOOTSTRAP_DRIVE_URL}" ]]; then
       echo "CFG_BOOTSTRAP_DRIVE_URL detected,downloading..."
       _tname="cfg01_${RANDOM}.iso"
-      _wget_opts="--progress=dot:mega --waitretry=15 --retry-connrefused"
-      wget ${_wget_opts} -O /${_tname} "${CFG_BOOTSTRAP_DRIVE_URL}"
-      mount -o loop /${_tname} /mnt/
+      wget ${WGET_OPTS} -O /${_tname} "${CFG_BOOTSTRAP_DRIVE_URL}"
+      mount -o loop /${_tname} /mnt
     else
       mount /dev/cdrom /mnt/
     fi
