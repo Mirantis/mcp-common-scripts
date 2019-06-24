@@ -24,12 +24,15 @@ write_files:
 
       export MCP_SALT_REPO_URL=${MCP_SALT_REPO_URL:-"http://mirror.mirantis.com/"}
       export MCP_SALT_REPO=${MCP_SALT_REPO:-"deb [arch=amd64] $MCP_SALT_REPO_URL/$MCP_VERSION/salt-formulas/xenial xenial main"}
+
+      export ENABLE_MCP_SALT_REPO_UPDATES=${ENABLE_MCP_SALT_REPO_UPDATES:-"true"}
       export MCP_SALT_REPO_UPDATES=${MCP_SALT_REPO_UPDATES:-"deb [arch=amd64] $MCP_SALT_REPO_URL/update/$MCP_VERSION/salt-formulas/xenial xenial main"}
       export MCP_SALT_REPO_KEY=${MCP_SALT_REPO_KEY:-"${MCP_SALT_REPO_URL}/${MCP_VERSION}/salt-formulas/xenial/archive-salt-formulas.key"}
 
       export FORMULAS=${FORMULAS:-"salt-formula-*"}
       export SALT_OPTS=${SALT_OPTS:-"-l debug -t 30 --retcode-passthrough --no-color"}
       export CFG_BOOTSTRAP_DRIVE_URL=${CFG_BOOTSTRAP_DRIVE_URL:-""}
+      export WGET_OPTS=${WGET_OPTS:-"--progress=dot:mega --waitretry=15 --retry-connrefused"}
 
 master_config:
   - &master_config |
@@ -50,10 +53,15 @@ master_config:
     function process_formulas(){
       local RECLASS_ROOT=${RECLASS_ROOT:-/srv/salt/reclass/}
       local FORMULAS_PATH=${FORMULAS_PATH:-/usr/share/salt-formulas}
+      local _tname="/tmp/archive-salt-formulas_${RANDOM}.key"
 
-      curl -s ${MCP_SALT_REPO_KEY} | apt-key add -
+      wget ${WGET_OPTS} -O ${_tname} ${MCP_SALT_REPO_KEY}
+      apt-key add ${_tname}
+
       echo "${MCP_SALT_REPO}" > /etc/apt/sources.list.d/mcp_salt.list
-      echo "${MCP_SALT_REPO_UPDATES}" >> /etc/apt/sources.list.d/mcp_salt.list
+      if [[ "${ENABLE_MCP_SALT_REPO_UPDATES}" == "true" ]] ; then
+        echo "${MCP_SALT_REPO_UPDATES}" >> /etc/apt/sources.list.d/mcp_salt.list
+      fi
       apt-get update
       apt-get install -y salt-formula-*
 
@@ -123,11 +131,13 @@ master_config:
 
     function wait_for_postgresql() {
       salt_string="salt-call --out=text pillar.get postgresql:client:server:server01:admin"
-      pg_port=$(${salt_string}:port | awk '{print $2}')
-      pg_host=$(${salt_string}:host | awk '{print $2}')
-      wait_time=0
-      until [[ $(/usr/bin/pg_isready -h ${pg_host} -p ${pg_port} | awk '{ print $3 }' ) == 'accepting' ]] || [ $wait_time -eq 20 ];
-      do
+      local pg_port=$(${salt_string}:port | awk '{print $2}')
+      local pg_host=$(${salt_string}:host | awk '{print $2}')
+      local wait_time=0
+      until [[ $(/usr/bin/pg_isready -h ${pg_host} -p ${pg_port} | awk '{ print $3 }' ) == 'accepting' ]]; do
+        if [[ $wait_time -gt 20 ]]; then
+          echo "ERROR: wait_for_postgresql failed" ; exit 1
+        fi
         echo "Waiting for postgres at: ${pg_host}:${pg_port}"
         sleep $(( wait_time++  ));
       done
@@ -138,13 +148,16 @@ master_config:
       jport=$(salt-call --out=text pillar.get jenkins:master:http:port | awk '{print $2}')
       jport=${jport:-8081}
       wait_time=0
-      until [[ $(curl -sL -w "%{http_code}" localhost:$jport -o /dev/null) == 200 ]] || [ $wait_time -eq 20 ]; do
+      until [[ $(curl -sL -w "%{http_code}" localhost:$jport -o /dev/null) == 200 ]] ; do
+        if [[ $wait_time -gt 20 ]]; then
+          echo "ERROR: wait_for_jenkins failed" ; exit 1
+        fi
         sleep $(( wait_time++ ))
       done
     }
 
     function process_swarm() {
-      _swarm=$(salt-call --out=text pillar.get docker:swarm:advertise_addr | awk '{print $2}')
+      local _swarm=$(salt-call --out=text pillar.get docker:swarm:advertise_addr | awk '{print $2}')
       if [[ "${_swarm}" != "" ]]; then
         salt-call ${SALT_OPTS} state.sls docker.swarm
       fi
@@ -186,9 +199,9 @@ master_config:
       ssh-keyscan cfg01 > ${JENKINS_HOME}/.ssh/known_hosts && chmod a+r ${JENKINS_HOME}/.ssh/known_hosts || true
     }
 
-    failsafe_ssh_key(){
+    function failsafe_ssh_key(){
       if [ -f /mnt/root_auth_keys ]; then
-        echo "Installing failsafe public ssh key from /mnt/root_auth_keys to /root/.ssh/authorized_keys"
+        echo 'Installing failsafe public ssh key from /mnt/root_auth_keys to /root/.ssh/authorized_keys'
         install -m 0700 -d /root/.ssh
         cat /mnt/root_auth_keys >> /root/.ssh/authorized_keys
         chmod 600 /root/.ssh/authorized_keys
@@ -198,36 +211,49 @@ master_config:
       fi
     }
 
+    function wait_for_salt(){
+      local wait_time=0
+      until $(salt-call --timeout=30 test.ping  &> /dev/null ); do
+        if [[ $wait_time -gt 15 ]]; then
+          echo "ERROR: wait_for_salt failed" ; exit 1
+        fi
+        sleep $(( wait_time++ ))
+      done
+    }
+
     function process_salt_base(){
       # PROD-21179| PROD-21792 : To describe such trick's around salt.XX state ordering
       salt-call ${SALT_OPTS} state.sls salt.master
       # Wait for salt-master to wake up after restart
       sleep 5
-      salt-call --timeout=120 test.ping
+      wait_for_salt
       # Run salt.minion.ca to prepare CA certificate before salt.minion.cert is used
       salt-call ${SALT_OPTS} state.sls salt.minion.ca
       # Add sleep for completion of postponed restart of salt-minion. PROD-25986
       sleep 15
       salt-call ${SALT_OPTS} state.sls salt.minion
       # Wait for salt-minion to wake up after restart
-      sleep 5
-      salt-call --timeout=120 test.ping
-      salt-call ${SALT_OPTS} state.sls salt
-      salt-call ${SALT_OPTS} state.sls reclass
+      wait_for_salt
+      salt-call ${SALT_OPTS} state.apply salt
+      salt-call ${SALT_OPTS} state.apply reclass
     }
     #== Body ==================================================================#
 
     . /etc/cloud/master_environment
     printenv | sort -u
+    # WA for https://gerrit.mcp.mirantis.com/#/c/34514/
+    echo "INFO: stopping orphaned maas"
+    systemctl stop maas-rackd.service maas-dhcpd.service maas-dhcpd6.service || true
+    systemctl disable maas-rackd.service maas-dhcpd.service maas-dhcpd6.service || true
+
     process_network
 
     echo "Preparing metadata model"
     if [[ -n "${CFG_BOOTSTRAP_DRIVE_URL}" ]]; then
       echo "CFG_BOOTSTRAP_DRIVE_URL detected,downloading..."
       _tname="cfg01_${RANDOM}.iso"
-      _wget_opts="--progress=dot:mega --waitretry=15 --retry-connrefused"
-      wget ${_wget_opts} -O /${_tname} "${CFG_BOOTSTRAP_DRIVE_URL}"
-      mount -o loop /${_tname} /mnt/
+      wget ${WGET_OPTS} -O /${_tname} "${CFG_BOOTSTRAP_DRIVE_URL}"
+      mount -o loop /${_tname} /mnt
     else
       mount /dev/cdrom /mnt/
     fi
@@ -242,14 +268,14 @@ master_config:
     echo "Configuring salt"
     envsubst < /root/minion.conf > /etc/salt/minion.d/minion.conf
     if [ -f /mnt/gpg/salt_master_pillar.asc ]; then
-      mkdir /etc/salt/gpgkeys
-      chmod 700 /etc/salt/gpgkeys
+      mkdir -p /etc/salt/gpgkeys
+      chmod 0700 /etc/salt/gpgkeys
       GNUPGHOME=/etc/salt/gpgkeys gpg --import /mnt/gpg/salt_master_pillar.asc
     fi
     enable_services
 
     # Wait for salt-master and salt-minion to wake up after restart
-    salt-call --timeout=120 test.ping
+    wait_for_salt
 
     while true; do
     salt-key | grep "$SALT_MASTER_MINION_ID" && break
@@ -283,6 +309,10 @@ master_config:
     salt-call ${SALT_OPTS} state.sls linux.network,linux,openssh
     process_salt_base
 
+    _nginx_enabled=$(salt-call --out=newline_values_only pillar.get nginx:server:enabled | tr "[:upper:]" "[:lower:]")
+    if [[ "${_nginx_enabled}" == "true" ]]; then
+      salt-call ${SALT_OPTS} state.apply nginx.server
+    fi
 
     if [ -f /opt/jenkins_in_docker ] || [ -f /opt/postgresql_in_docker ]; then
       process_swarm
