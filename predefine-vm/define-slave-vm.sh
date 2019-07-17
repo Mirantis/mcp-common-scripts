@@ -114,14 +114,15 @@ python ./create_config_drive.py ${isoArgs}
 export SLAVE_VM_CONFIG_DISK=$(place_file_under_libvirt_owned_dir ${aioHostname}.${clusterDomain}-config.iso ${NON_DEFAULT_LIBVIRT_DIR})
 popd
 
+export VM_PUBLIC_NET_NEEDED=true
 render_config "${SLAVE_VM_NAME}" "${SLAVE_VM_MEM_KB}" "${SLAVE_VM_CPUS}" "${SLAVE_VM_SOURCE_DISK}" "${SLAVE_VM_CONFIG_DISK}"
 
 virsh define $(pwd)/${SLAVE_VM_NAME}-vm.xml
 virsh autostart ${SLAVE_VM_NAME}
 
-openstackAIOFile=$(isoinfo -i ${VM_CONFIG_DISK} -J -f | grep -w "setup_aio.yml")
+openstackAIOFile=$(isoinfo -i ${VM_CONFIG_DISK} -J -f | grep -w "openstack_aio/setup_aio.yml")
 openstackScheme=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${openstackAIOFile} | grep -w 'cluster_public_protocol' | cut -f 2 -d ':' | tr -d ' ')
-openstackAddress=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${allocationDataFile} | grep -w 'aio_node_address' | cut -f 2 -d ':' | tr -d ' ')
+openstackAddress=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${allocationDataFile} | grep -w 'cluster_public_host' | cut -f 2 -d ':' | tr -d ' ')
 secretsFile=$(isoinfo -i ${VM_CONFIG_DISK} -J -f | grep -w "infra/secrets.yml")
 openstackPassword=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${secretsFile} | grep -E -w 'keystone_admin_password(_generated)?' | cut -f 2 -d ':' | tr -d ' ')
 echo "Once OpenStack deploy job is finished successfully OpenStack UI will be available on: ${openstackScheme}://${openstackAddress}:8078"

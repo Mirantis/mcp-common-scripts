@@ -7,7 +7,12 @@ export VM_CTL_NETWORK_NAME=${VM_CTL_NETWORK_NAME:-"ctl_network"}
 export RECREATE_NETWORKS_IF_EXISTS=${RECREATE_NETWORKS_IF_EXISTS:-false}
 export VM_MEM_KB=${VM_MEM_KB:-"12589056"}
 export VM_CPUS=${VM_CPUS:-"4"}
-# optional params if you want enable slave vm
+# Params if you want deploy slave vm AIO node
 export SLAVE_VM_MEM_KB=${SLAVE_VM_MEM_KB:-"16777216"}
 export SLAVE_VM_CPUS=${SLAVE_VM_CPUS:-"4"}
 export SLAVE_VM_DISK_SIZE=${SLAVE_VM_DISK_SIZE:-"50G"}
+export VM_PUBLIC_BRIDGE_DISABLE=${VM_PUBLIC_BRIDGE_DISABLE:-false}
+export VM_PUBLIC_BRIDGE_NAME=${VM_PUBLIC_BRIDGE_NAME:-"br-pub"}
+export VM_PUBLIC_NETWORK_NAME=${VM_PUBLIC_NETWORK_NAME:-"pub_network"}
+# will be auto set to true for slave AIO deployment
+export VM_PUBLIC_NET_NEEDED=${VM_PUBLIC_NET_NEEDED:-false}

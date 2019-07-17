@@ -59,6 +59,11 @@ Script is operating by next ENV variables:
       You can download and use the following image: http://images.mcp.mirantis.net/ubuntu-16-04-x64-mcp2019.2.0.qcow2
     * SLAVE_VM_MEM_KB - amount of RAM for VM in KB. Default is: 16777216
     * SLAVE_VM_CPUS - amount of CPUs to use. Default is: 4.
+    * VM_PUBLIC_NET_NEEDED - create or not additional public interface for instance, which is used to provide
+    public addresses for OpenStack. Default is: false. But for slave AIO node can not be overrided and set to true.
+    * VM_PUBLIC_BRIDGE_NAME - Bridge name to use for public network. Optional, default: 'br-pub'
+    * VM_PUBLIC_BRIDGE_DISABLE - Do not use host bridge for public OpenStack network and create host-only based new network. Optional, default: false
+    * VM_PUBLIC_NETWORK_NAME - Name for public OpenStack network. Optional, default: 'pub_network'
 
 Next parameters should be same as for cfg01 node:
 
@@ -70,13 +75,19 @@ Next parameters should be same as for cfg01 node:
     * VM_MGM_NETWORK_NAME
     * VM_CTL_NETWORK_NAME
 
-Also once you setup cfg01 setup the next parameter: export CREATE_NEWORKS=false
-This parameter will disable network recreation, which can be needed in case of changing network setup.
+Next parameter:
+
+    * RECREATE_NETWORKS_IF_EXISTS
+
+will disable network recreation, which can be needed in case of changing network setup.
+By default set to `false`, to prevent network recreation in case of rebuilding nodes. If
+you need to recreate networks set it to true or manually destroy existing networks.
 
 Also if you are not going to use system bridges, set next parameters to true:
 
-    * VM_MGM_BRIDGE_DISABLE=true
-    * VM_CTL_BRIDGE_DISABLE=true
+    * export VM_MGM_BRIDGE_DISABLE=true
+    * export VM_CTL_BRIDGE_DISABLE=true
+    * export VM_PUBLIC_BRIDGE_DISABLE=true
 
 This will switch using to locally created virsh networks.
 

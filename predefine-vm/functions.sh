@@ -10,6 +10,20 @@ else
   source ${envFile}
 fi
 
+function count_netmask {
+    local network=$1
+    local cidr=$(echo $network | cut -f 2 -d '/')
+    local ones="printf '1%.0s' {1..${cidr}}"
+    local zeros="printf '0%.0s' {1..$(( 32 - ${cidr} ))}"
+    local netmask_binary="$(echo $ones | bash)$(echo $zeros | bash)"
+    local netmask_decimal=""
+    for i in 0 8 16 24; do
+        netmask_decimal+="$(echo $((2#${netmask_binary:${i}:8})))"
+        [[ "${i}" != '24' ]] && netmask_decimal+='.'
+    done
+    echo "${netmask_decimal}"
+}
+
 function check_packages {
     local slave=$1
     local packages="libvirt-bin qemu-kvm"
@@ -213,6 +227,31 @@ EOF
       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
     </interface>
 EOF
+fi
+
+  if [[ "${VM_PUBLIC_NET_NEEDED}" =~ [Tt]rue ]]; then
+    if [[ "${VM_PUBLIC_BRIDGE_DISABLE}" =~ [Ff]alse ]]; then
+        create_bridge_network "${VM_PUBLIC_NETWORK_NAME}" "${VM_PUBLIC_BRIDGE_NAME}"
+        cat <<EOF >> $(pwd)/${vmName}-vm.xml
+    <interface type='bridge'>
+      <source bridge='$VM_PUBLIC_BRIDGE_NAME'/>
+      <model type='virtio'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
+    </interface>
+EOF
+    else
+        local vmPublicNetworkGateway=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${allocationDataFile} | grep -w 'openstack_public_neutron_subnet_gateway' | cut -f 2 -d ':' | tr -d ' ')
+        local vmPublicNetworkCIDR=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${allocationDataFile} | grep -w 'openstack_public_neutron_subnet_cidr' | cut -f 2 -d ':' | tr -d ' ')
+        local vmPublicNetworkMask=$(count_netmask "${vmPublicNetworkCIDR}")
+        create_host_network "${VM_PUBLIC_NETWORK_NAME}" "${vmPublicNetworkGateway}" "${vmPublicNetworkMask}" true
+        cat <<EOF >> $(pwd)/${vmName}-vm.xml
+    <interface type='network'>
+      <source network='$VM_PUBLIC_NETWORK_NAME'/>
+      <model type='virtio'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
+    </interface>
+EOF
+    fi
 fi
 
   cat <<EOF >> $(pwd)/${vmName}-vm.xml

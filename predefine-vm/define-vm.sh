@@ -37,6 +37,6 @@ virsh autostart ${VM_NAME}
 
 allocationDataFile=$(isoinfo -i ${VM_CONFIG_DISK} -J -f | grep -w "allocation_data.yml")
 secretsFile=$(isoinfo -i ${VM_CONFIG_DISK} -J -f | grep "infra/secrets.yml")
-cfgJenkinsPassword=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${secretsFile} | grep 'jenkins_cfg_admin_password_generated')
-cfgJenkinsAddress=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${allocationDataFile} | grep 'infra_config_deploy_address')
+cfgJenkinsPassword=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${secretsFile} | grep 'jenkins_cfg_admin_password_generated' | cut -f 2 -d ':' | tr -d ' ')
+cfgJenkinsAddress=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${allocationDataFile} | grep 'infra_config_deploy_address' | cut -f 2 -d ':' | tr -d ' ')
 echo "Once deployed, Jenkins will be available via: http://${cfgJenkinsAddress}:8081 and login creds are: admin / ${cfgJenkinsPassword}"
