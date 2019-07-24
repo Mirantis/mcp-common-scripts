@@ -125,5 +125,5 @@ openstackScheme=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${openstackAIOFile} | grep 
 openstackAddress=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${contextFilePath} | grep -w 'public_host' | cut -f 2 -d ':' | tr -d ' ')
 secretsFile=$(isoinfo -i ${VM_CONFIG_DISK} -J -f | grep -w "infra/secrets.yml")
 openstackPassword=$(isoinfo -i ${VM_CONFIG_DISK} -J -x ${secretsFile} | grep -E -w 'keystone_admin_password(_generated)?' | cut -f 2 -d ':' | tr -d ' ')
-echo "Once OpenStack deploy job is finished successfully OpenStack UI will be available on: ${openstackScheme}://${openstackAddress}:8078"
+echo "Once OpenStack deploy job is finished successfully OpenStack UI will be available on: ${openstackScheme}://${openstackAddress}"
 echo "Login creds are: admin / ${openstackPassword}"
