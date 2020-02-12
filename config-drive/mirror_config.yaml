@@ -14,7 +14,7 @@ mirror_config:
 - &mirror_config |
     function docker_ca_wa(){
       crt="/var/lib/docker/swarm/certificates/swarm-node.crt"
-      if ! $(openssl x509 -checkend 86400 -noout -in ${crt}); then
+      if openssl x509 -checkend 86400 -noout -in ${crt}; then
         echo "WARNING: swarm CA not expired yet.Something other wrong with docker"
         echo "WARNING: docker CA WA not applied"
         exit 1
